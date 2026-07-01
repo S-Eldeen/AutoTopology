@@ -26,6 +26,10 @@ export const config = {
 
   mongo: {
     uri: process.env.MONGO,
+    dnsServers: (process.env.MONGO_DNS_SERVERS || '')
+      .split(',')
+      .map(server => server.trim())
+      .filter(Boolean),
   },
 
   jwt: {

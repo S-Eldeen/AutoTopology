@@ -109,13 +109,8 @@ class SessionState:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _compute_max_tokens(devices: List[Dict[str, Any]], security_profile: str) -> int:
-    """Dynamic token limit based on expected topology complexity."""
-    base = BASE_MAX_TOKENS
-    # More devices → more output needed
-    device_factor = min(len(devices) * 200, 8000)
-    # Enterprise security profile adds substantial config
-    security_factor = 3000 if security_profile == "enterprise" else 0
-    return base + device_factor + security_factor
+    """Return the provider token cap for topology generation."""
+    return BASE_MAX_TOKENS
 
 
 def _build_step1_prompt(

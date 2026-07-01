@@ -1,6 +1,7 @@
 /**
  * Server entry point — connects to MongoDB, starts Express.
  */
+import dns from 'node:dns';
 import mongoose from 'mongoose';
 import config from './config/index.js';
 import app from './app.js';
@@ -10,6 +11,11 @@ import aiEngine from './services/ai-engine.bridge.js';
 async function start() {
   // ── Connect to MongoDB ────────────────────────────────────
   try {
+    if (config.mongo.dnsServers.length) {
+      dns.setServers(config.mongo.dnsServers);
+      logger.info(`MongoDB DNS resolvers: ${config.mongo.dnsServers.join(', ')}`);
+    }
+
     mongoose.set('strictQuery', true);
     await mongoose.connect(config.mongo.uri, {
       serverSelectionTimeoutMS: 5000,

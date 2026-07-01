@@ -52,12 +52,8 @@ BASE_MAX_TOKENS = _env_int("AI_MAX_TOKENS", 16384)
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _compute_phase2_max_tokens(brief: str, security_profile: str) -> int:
-    """Dynamic token limit based on brief size and security profile."""
-    base = BASE_MAX_TOKENS
-    # Larger briefs need more output
-    brief_factor = min(len(brief) // 50, 8000)
-    security_factor = 4000 if security_profile == "enterprise" else 0
-    return base + brief_factor + security_factor
+    """Return the provider token cap for configuration generation."""
+    return BASE_MAX_TOKENS
 
 
 def _build_phase2_prompt(

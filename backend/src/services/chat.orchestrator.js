@@ -89,6 +89,13 @@ function classifyIntent(userMessage) {
   return 'tool';
 }
 
+function isExistingTopologyRequest(userMessage) {
+  if (!userMessage || typeof userMessage !== 'string') return false;
+  const msg = userMessage.toLowerCase().trim();
+  return /\b(show|see|view|display|give|get|send|open)\b.*\b(design|topology|network|diagram)\b/i.test(msg)
+    || /\b(design|topology|diagram)\b.*\b(please|now|again|current|existing)\b/i.test(msg);
+}
+
 // ═══════════════════════════════════════════════════════════
 // EMOJI SAFETY NET
 // Hard guarantee: NO emojis ever reach the frontend, regardless of LLM behavior.
@@ -123,7 +130,7 @@ const TOOL_DEFINITIONS = [
         type: 'object',
         properties: {
           request: { type: 'string', description: 'The user\'s natural-language request describing the network to build.' },
-          securityProfile: { type: 'string', enum: ['none', 'basic', 'enterprise'], description: 'Security profile. Default: enterprise.' },
+          securityProfile: { type: 'string', enum: ['none', 'basic', 'enterprise'], description: 'Security profile. Default: none.' },
         },
         required: ['request'],
       },
@@ -264,6 +271,35 @@ async function maybeAutoTitle(sessionId, firstUserContent) {
   await Session.updateOne({ _id: sessionId, title: 'New Chat' }, { $set: { title } });
 }
 
+async function replayCurrentTopology(sessionId, userId, topologyId) {
+  const topology = await Topology.findOne({ _id: topologyId, userId }).lean();
+  if (!topology) return false;
+
+  const topologyData = {
+    name: topology.name,
+    node_count: topology.nodeCount,
+    link_count: topology.linkCount,
+  };
+  const message = `Here is the current design: ${topology.name} (${topology.nodeCount} devices, ${topology.linkCount} links).`;
+
+  await appendMessage(sessionId, {
+    role: 'assistant',
+    content: message,
+    createdAt: new Date(),
+  });
+
+  sseService.broadcast(sessionId, 'agent_message', { message });
+  sseService.broadcast(sessionId, 'topology_ready', {
+    topologyId: topology._id,
+    topology_dict: topology.topologyDict,
+    topology_data: topologyData,
+    design_review: topology.designReview,
+    assumptions: topology.assumptions,
+  });
+  sseService.broadcast(sessionId, 'complete', { summary: 'Existing topology shown', rounds: 0 });
+  return true;
+}
+
 // ═══════════════════════════════════════════════════════════
 // TOOL EXECUTION
 // ═══════════════════════════════════════════════════════════
@@ -312,7 +348,7 @@ async function executeTool(sessionId, userId, toolName, args) {
     if (toolName === 'generate_topology') {
       result = await aiEngine.generate({
         request: args.request,
-        securityProfile: args.securityProfile || 'enterprise',
+        securityProfile: args.securityProfile || 'none',
         outputDir,
         profile,
       }, onEvent);
@@ -355,7 +391,7 @@ async function executeTool(sessionId, userId, toolName, args) {
         feedback: args.feedback,
         topologyPath: topology.phase1File || path.resolve(outputDir, '_topology.json'),
         originalRequest: session.originalRequest || topology.request,
-        securityProfile: args.securityProfile || 'enterprise',
+        securityProfile: args.securityProfile || 'none',
         outputDir,
         profile,
       }, onEvent);
@@ -391,14 +427,14 @@ async function executeTool(sessionId, userId, toolName, args) {
       const exportJob = await ExportJob.create({
         sessionId, userId,
         topologyId: topology._id,
-        securityProfile: args.securityProfile || 'enterprise',
+        securityProfile: args.securityProfile || 'none',
         status: 'running',
       });
       await Session.findByIdAndUpdate(sessionId, { currentExportId: exportJob._id });
 
       result = await aiEngine.exportProject({
         topologyPath: topology.phase1File || path.resolve(outputDir, '_topology.json'),
-        securityProfile: args.securityProfile || 'enterprise',
+        securityProfile: args.securityProfile || 'none',
         outputDir,
         profile,
       }, onEvent);
@@ -424,7 +460,7 @@ async function executeTool(sessionId, userId, toolName, args) {
           { name: 'configs.zip', type: 'configs', size: null },
           { name: 'manifest.txt', type: 'manifest', size: null },
         ].filter(f => f.name),
-        securityProfile: args.securityProfile || 'enterprise',
+        securityProfile: args.securityProfile || 'none',
         validation: result.validation,
         deviceConfigs: Object.keys(result.config_texts || {}),
       });
@@ -469,6 +505,14 @@ export async function dispatch(sessionId, userId, userMessage) {
   logger.info(`[orchestrator] Session ${sessionId} intent="${intent}" msg="${userMessage.slice(0, 50)}"`);
 
   const freshSession = await Session.findById(sessionId).lean();
+  if (hasTopology && isExistingTopologyRequest(userMessage)) {
+    const replayed = await replayCurrentTopology(sessionId, userId, session.currentTopologyId);
+    if (replayed) {
+      logger.info(`[orchestrator] Replayed existing topology for session ${sessionId}`);
+      return { ok: true, rounds: 0 };
+    }
+  }
+
   let messages = buildLLMMessages(freshSession, userMessage, isFirstUser, intent);
   let round = 0;
 
