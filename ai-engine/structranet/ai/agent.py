@@ -294,44 +294,33 @@ PATTERN D — NAT intermediary (when NAT must serve multiple devices):
 {security_block}
 
 ════════════════════════════════════════════════════════════════════════
-  CHAIN-OF-THOUGHT REQUIREMENT
+  RESPONSE SIZE REQUIREMENT
 ════════════════════════════════════════════════════════════════════════
 
-Use the "thinking" key to act as a friendly, expert Senior Network
-Architect talking directly to the user. In this string, you MUST:
+Do not include explanations, reasoning text, markdown, comments, or prose.
+The backend will summarize the design after validation. If you include a
+"thinking" key, keep it to one short sentence. Focus the token budget on
+the topology JSON.
 
-1. Acknowledge their request naturally (e.g., "Sure, I'd be happy to
-   design this enterprise network for you!").
-2. Walk through the BUILD ALGORITHM steps above:
-   - Step 1: List the devices you'll need
-   - Step 2: How you handle single-port devices (NAT, VPCS)
-   - Step 3: How you create the backbone connectivity
-   - Step 4: How you attach switches
-   - Step 5: How you attach end devices
-   - Step 6: Your verification — confirm fully connected, no port violations
-3. Maintain a conversational, helpful, and natural tone.
 
 ════════════════════════════════════════════════════════════════════════
   OUTPUT FORMAT
 ════════════════════════════════════════════════════════════════════════
 
-Return a SINGLE JSON object with exactly two top-level keys:
+Return a SINGLE JSON object. Prefer this compact top-level topology shape:
 
 {{
-  "thinking": "<your step-by-step architectural reasoning as a plain string>",
-  "topology": {{
-    "name": "<project name>",
-    "nodes": [
-      {{"node_id": "R1", "name": "R1-Edge", "node_type": "dynamips",
-        "template_name": "<exact inventory name>", "compute_id": "local"}}
-    ],
-    "connections": [
-      {{"from_node": "R1", "to_node": "SW1", "link_type": "ethernet"}}
-    ]
-  }}
+  "name": "<project name>",
+  "nodes": [
+    {{"node_id": "R1", "name": "R1-Edge", "node_type": "dynamips",
+      "template_name": "<exact inventory name>", "compute_id": "local"}}
+  ],
+  "connections": [
+    {{"from_node": "R1", "to_node": "SW1", "link_type": "ethernet"}}
+  ]
 }}
 
-The "topology" value must conform exactly to this JSON Schema:
+The topology object must conform exactly to this JSON Schema:
 {schema_json}
 
 Respond with ONLY the JSON object. No markdown fences. No explanation outside the JSON."""
@@ -1117,6 +1106,10 @@ def generate_network_topology(
 
         if topo_request is None:
             logger.error("LLM call failed on attempt %d", attempt)
+            previous_errors = [
+                "Previous response was invalid or truncated JSON. Return one complete JSON object only, "
+                "with no markdown, no commentary, and all arrays/objects properly closed."
+            ]
             continue
 
         req_errors = validate_topology_request(topo_request.model_dump())

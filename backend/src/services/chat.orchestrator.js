@@ -34,6 +34,8 @@ const client = new OpenAI({
   baseURL: config.llm.baseUrl,
 });
 
+const DEFAULT_SECURITY_PROFILE = 'none';
+
 // ═══════════════════════════════════════════════════════════
 // INTENT CLASSIFIER (heuristic, no LLM call)
 // Conservative: only routes to 'chat' for OBVIOUS small talk.
@@ -94,6 +96,67 @@ function isExistingTopologyRequest(userMessage) {
   const msg = userMessage.toLowerCase().trim();
   return /\b(show|see|view|display|give|get|send|open)\b.*\b(design|topology|network|diagram)\b/i.test(msg)
     || /\b(design|topology|diagram)\b.*\b(please|now|again|current|existing)\b/i.test(msg);
+}
+
+function inferSecurityProfile(userMessage) {
+  const msg = (userMessage || '').toLowerCase();
+  if (/\b(enterprise|zero trust|dmz|siem|ids|ips|compliance|segmentation|soc)\b/.test(msg)) {
+    return 'enterprise';
+  }
+  if (/\b(security|secure|firewall|acl|vpn|nat|hardening|protected)\b/.test(msg)) {
+    return 'basic';
+  }
+  return DEFAULT_SECURITY_PROFILE;
+}
+
+function getDeterministicAction(userMessage, hasTopology) {
+  if (!userMessage || typeof userMessage !== 'string') return null;
+  const msg = userMessage.toLowerCase().trim();
+
+  if (/^(hi|hello|hey|yo|sup|hiya|good morning|good afternoon|good evening)[.! ]*$/.test(msg)) {
+    return { type: 'message', content: 'Hi. Tell me what network you want to build or what you want to change.' };
+  }
+  if (/^(ok|okay|cool|nice|got it|understood|thanks|thank you)[.! ]*$/.test(msg)) {
+    return { type: 'message', content: 'Ready when you are.' };
+  }
+  if (/^(who|what) (are|r) (you|u)\b|^what(?:'s|s| is) your name|^what can you do/i.test(msg)) {
+    return { type: 'message', content: 'I am StructuraNet AI, a network design assistant that can generate, revise, and export GNS3-ready topologies.' };
+  }
+
+  if (isExistingTopologyRequest(msg)) {
+    return hasTopology
+      ? { type: 'show_topology' }
+      : { type: 'message', content: 'No topology exists in this session yet. Tell me what network to build first.' };
+  }
+
+  if (/\b(export|download|deploy|deployment kit|gns3|configs?|configuration files?)\b/.test(msg)) {
+    return hasTopology
+      ? { type: 'tool', tool: 'export_project', args: { securityProfile: inferSecurityProfile(msg) } }
+      : { type: 'message', content: 'No topology exists to export yet. Generate a topology first, then ask me to export it.' };
+  }
+
+  const editPattern = /\b(add|remove|delete|change|modify|edit|replace|rename|connect|disconnect|move|update)\b/i;
+  const buildPattern = /\b(build|create|generate|design|make|draw|plan)\b.*\b(network|topology|diagram|router|switch|pc|host|firewall|site|branch|vlan)\b/i;
+  const inventoryPattern = /\b\d+\s*(router|routers|switch|switches|pc|pcs|host|hosts|firewall|firewalls|server|servers)\b/i;
+  const questionPattern = /^(what|how|why|when|where|can|could|would|should|do|does|did|is|are)\b/i;
+
+  if (hasTopology && editPattern.test(msg) && !questionPattern.test(msg)) {
+    return {
+      type: 'tool',
+      tool: 'edit_topology',
+      args: { feedback: userMessage, securityProfile: inferSecurityProfile(msg) },
+    };
+  }
+
+  if (buildPattern.test(msg) || inventoryPattern.test(msg)) {
+    return {
+      type: 'tool',
+      tool: 'generate_topology',
+      args: { request: userMessage, securityProfile: inferSecurityProfile(msg) },
+    };
+  }
+
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -266,6 +329,18 @@ async function appendMessage(sessionId, message) {
   );
 }
 
+async function appendAssistantMessage(sessionId, message) {
+  const updateResult = await Session.findByIdAndUpdate(
+    sessionId,
+    {
+      $push: { messages: message },
+      $set: { lastActivityAt: new Date() },
+    },
+    { new: true, select: 'messages' }
+  );
+  return updateResult?.messages?.[updateResult.messages.length - 1]?._id || null;
+}
+
 async function maybeAutoTitle(sessionId, firstUserContent) {
   const title = firstUserContent.slice(0, 60) + (firstUserContent.length > 60 ? '…' : '');
   await Session.updateOne({ _id: sessionId, title: 'New Chat' }, { $set: { title } });
@@ -298,6 +373,79 @@ async function replayCurrentTopology(sessionId, userId, topologyId) {
   });
   sseService.broadcast(sessionId, 'complete', { summary: 'Existing topology shown', rounds: 0 });
   return true;
+}
+
+async function sendDirectMessage(sessionId, content) {
+  const message = stripEmojis(content);
+  await appendAssistantMessage(sessionId, {
+    role: 'assistant',
+    content: message,
+    createdAt: new Date(),
+  });
+  sseService.broadcast(sessionId, 'agent_message', { message });
+  sseService.broadcast(sessionId, 'complete', { summary: message, rounds: 0 });
+}
+
+function directToolIntro(toolName) {
+  if (toolName === 'generate_topology') return 'Building that topology now.';
+  if (toolName === 'edit_topology') return 'Updating the current topology now.';
+  if (toolName === 'export_project') return 'Preparing the deployment kit now.';
+  return 'Working on that now.';
+}
+
+async function executeDirectTool(sessionId, userId, toolName, args) {
+  const intro = directToolIntro(toolName);
+  const assistantId = await appendAssistantMessage(sessionId, {
+    role: 'assistant',
+    content: intro,
+    tool: toolName,
+    createdAt: new Date(),
+  });
+  sseService.broadcast(sessionId, 'agent_message', { message: intro });
+
+  try {
+    const result = await executeTool(sessionId, userId, toolName, args);
+    if (assistantId) {
+      await Session.updateOne(
+        { _id: sessionId, 'messages._id': assistantId },
+        { $set: { 'messages.$.toolSummary': result.summary } }
+      );
+    }
+    sseService.broadcast(sessionId, 'complete', { summary: result.summary, rounds: 0 });
+    return { ok: true, rounds: 0 };
+  } catch (err) {
+    const friendly = friendlyToolError(err);
+    if (assistantId) {
+      await Session.updateOne(
+        { _id: sessionId, 'messages._id': assistantId },
+        { $set: { 'messages.$.toolSummary': friendly } }
+      );
+    }
+    sseService.broadcast(sessionId, 'complete', { summary: friendly, rounds: 0 });
+    return { ok: false, rounds: 0, error: friendly };
+  }
+}
+
+function friendlyToolError(err) {
+  const raw = [
+    err?.message,
+    err?.details?.details,
+    err?.details?.stderr,
+  ].filter(Boolean).join('\n');
+
+  if (/402 Payment Required|more credits|can only afford/i.test(raw)) {
+    return 'The model provider rejected this request because the account has too few credits for the requested token budget. Add credits, choose a cheaper model, or lower AI_MAX_TOKENS.';
+  }
+  if (/Expecting ',' delimiter|Unterminated string|JSONDecodeError|parse|truncat/i.test(raw)) {
+    return 'The model returned incomplete or invalid JSON, usually because the response was truncated. Try a smaller topology or raise AI_MAX_TOKENS.';
+  }
+  if (/No topology/i.test(raw)) {
+    return 'No topology exists yet. Generate a topology first, then retry this action.';
+  }
+  if (/ROUTER_API_KEY/i.test(raw)) {
+    return 'The AI provider API key is missing or invalid. Check ROUTER_API_KEY in backend/.env.';
+  }
+  return err?.message || 'The requested operation failed.';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -348,7 +496,7 @@ async function executeTool(sessionId, userId, toolName, args) {
     if (toolName === 'generate_topology') {
       result = await aiEngine.generate({
         request: args.request,
-        securityProfile: args.securityProfile || 'none',
+        securityProfile: args.securityProfile || DEFAULT_SECURITY_PROFILE,
         outputDir,
         profile,
       }, onEvent);
@@ -391,7 +539,7 @@ async function executeTool(sessionId, userId, toolName, args) {
         feedback: args.feedback,
         topologyPath: topology.phase1File || path.resolve(outputDir, '_topology.json'),
         originalRequest: session.originalRequest || topology.request,
-        securityProfile: args.securityProfile || 'none',
+        securityProfile: args.securityProfile || DEFAULT_SECURITY_PROFILE,
         outputDir,
         profile,
       }, onEvent);
@@ -427,14 +575,14 @@ async function executeTool(sessionId, userId, toolName, args) {
       const exportJob = await ExportJob.create({
         sessionId, userId,
         topologyId: topology._id,
-        securityProfile: args.securityProfile || 'none',
+        securityProfile: args.securityProfile || DEFAULT_SECURITY_PROFILE,
         status: 'running',
       });
       await Session.findByIdAndUpdate(sessionId, { currentExportId: exportJob._id });
 
       result = await aiEngine.exportProject({
         topologyPath: topology.phase1File || path.resolve(outputDir, '_topology.json'),
-        securityProfile: args.securityProfile || 'none',
+        securityProfile: args.securityProfile || DEFAULT_SECURITY_PROFILE,
         outputDir,
         profile,
       }, onEvent);
@@ -460,7 +608,7 @@ async function executeTool(sessionId, userId, toolName, args) {
           { name: 'configs.zip', type: 'configs', size: null },
           { name: 'manifest.txt', type: 'manifest', size: null },
         ].filter(f => f.name),
-        securityProfile: args.securityProfile || 'none',
+        securityProfile: args.securityProfile || DEFAULT_SECURITY_PROFILE,
         validation: result.validation,
         deviceConfigs: Object.keys(result.config_texts || {}),
       });
@@ -473,9 +621,10 @@ async function executeTool(sessionId, userId, toolName, args) {
     return { success: true, summary, raw: result };
 
   } catch (err) {
+    const friendly = friendlyToolError(err);
     logger.error(`Tool ${toolName} failed:`, err);
-    sseService.broadcast(sessionId, 'tool_result', { tool: toolName, success: false, error: err.message });
-    sseService.broadcast(sessionId, 'error', { message: `Tool ${toolName} failed: ${err.message}`, tool: toolName });
+    sseService.broadcast(sessionId, 'tool_result', { tool: toolName, success: false, error: friendly });
+    sseService.broadcast(sessionId, 'error', { message: friendly, tool: toolName });
     throw err;
   }
 }
@@ -505,12 +654,22 @@ export async function dispatch(sessionId, userId, userMessage) {
   logger.info(`[orchestrator] Session ${sessionId} intent="${intent}" msg="${userMessage.slice(0, 50)}"`);
 
   const freshSession = await Session.findById(sessionId).lean();
-  if (hasTopology && isExistingTopologyRequest(userMessage)) {
+  const deterministicAction = getDeterministicAction(userMessage, hasTopology);
+  if (deterministicAction?.type === 'message') {
+    logger.info(`[orchestrator] Direct message for session ${sessionId}`);
+    await sendDirectMessage(sessionId, deterministicAction.content);
+    return { ok: true, rounds: 0 };
+  }
+  if (deterministicAction?.type === 'show_topology') {
     const replayed = await replayCurrentTopology(sessionId, userId, session.currentTopologyId);
     if (replayed) {
       logger.info(`[orchestrator] Replayed existing topology for session ${sessionId}`);
       return { ok: true, rounds: 0 };
     }
+  }
+  if (deterministicAction?.type === 'tool') {
+    logger.info(`[orchestrator] Direct tool ${deterministicAction.tool} for session ${sessionId}`);
+    return executeDirectTool(sessionId, userId, deterministicAction.tool, deterministicAction.args);
   }
 
   let messages = buildLLMMessages(freshSession, userMessage, isFirstUser, intent);

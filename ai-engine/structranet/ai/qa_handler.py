@@ -20,11 +20,13 @@ parsed into text elsewhere. This module expects a plain-text version at:
 from __future__ import annotations
 
 import logging
+import math
 import os
 import re
+from collections import Counter
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from structranet.ai.llm_utils import _call_with_retry, _get_client
 
@@ -35,6 +37,51 @@ logger = logging.getLogger("structranet.qa_handler")
 # parent = ai/, parent.parent = structranet/, so knowledge/ is structranet/knowledge/
 _DEFAULT_KB_PATH = Path(__file__).parent.parent / "knowledge" / "cisco_knowledge_base.txt"
 _KB_PATH = Path(os.getenv("QA_KNOWLEDGE_BASE_PATH", str(_DEFAULT_KB_PATH)))
+
+_STOPWORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "can", "do", "does",
+    "for", "from", "how", "i", "in", "is", "it", "me", "of", "on", "or",
+    "please", "show", "the", "to", "what", "when", "where", "which", "with",
+}
+
+_SEMANTIC_EXPANSIONS = {
+    "redundancy": ["hsrp", "vrrp", "glbp", "standby", "virtual", "gateway"],
+    "gateway": ["hsrp", "vrrp", "glbp", "standby"],
+    "failover": ["hsrp", "vrrp", "glbp", "standby", "tracking"],
+    "remote": ["ssh", "telnet", "vty", "line", "transport", "login"],
+    "access": ["ssh", "telnet", "vty", "acl", "access-list"],
+    "secure": ["ssh", "aaa", "password", "secret", "login", "access-class"],
+    "security": ["acl", "access-list", "ssh", "aaa", "port-security", "snooping"],
+    "rogue": ["dhcp", "snooping", "trusted", "untrusted"],
+    "loop": ["spanning-tree", "stp", "bpduguard", "rootguard", "portfast"],
+    "trunk": ["dot1q", "allowed", "native", "switchport"],
+    "vlan": ["switchport", "trunk", "access", "vtp", "inter-vlan"],
+    "routing": ["ospf", "eigrp", "bgp", "rip", "static", "route"],
+    "summarize": ["summary-address", "area", "range", "aggregate-address"],
+    "internet": ["nat", "pat", "overload", "default-route"],
+    "translate": ["nat", "pat", "overload", "inside", "outside"],
+    "monitor": ["show", "debug", "logging", "syslog", "snmp"],
+    "troubleshoot": ["show", "debug", "ping", "traceroute"],
+    "save": ["write", "memory", "copy", "startup-config", "running-config"],
+    "backup": ["copy", "tftp", "startup-config", "running-config"],
+    "etherchannel": ["port-channel", "channel-group", "lacp", "pagp"],
+    "lag": ["etherchannel", "port-channel", "channel-group", "lacp"],
+}
+
+_ACRONYM_EXPANSIONS = {
+    "aaa": ["authentication", "authorization", "accounting", "tacacs", "radius"],
+    "acl": ["access-list", "permit", "deny", "access-group"],
+    "bgp": ["router", "neighbor", "remote-as", "network"],
+    "dhcp": ["pool", "excluded-address", "snooping", "relay"],
+    "eigrp": ["router", "network", "autonomous", "summary-address"],
+    "glbp": ["load", "balancing", "gateway"],
+    "hsrp": ["standby", "priority", "preempt", "tracking"],
+    "nat": ["inside", "outside", "overload", "pat"],
+    "ospf": ["router", "network", "area", "passive-interface"],
+    "ssh": ["vty", "transport", "login", "username", "rsa"],
+    "stp": ["spanning-tree", "portfast", "bpduguard"],
+    "vrrp": ["virtual", "priority", "preempt"],
+}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -56,36 +103,138 @@ def _load_knowledge_base() -> str:
         return ""
 
 
+def _tokenize(text: str) -> list[str]:
+    """Tokenize command/reference text while preserving Cisco-style terms."""
+    return [
+        tok
+        for tok in re.findall(r"[a-z0-9][a-z0-9_-]*", text.lower())
+        if tok not in _STOPWORDS and len(tok) > 1
+    ]
+
+
+def _expand_query_tokens(tokens: list[str]) -> set[str]:
+    expanded = set(tokens)
+    for token in tokens:
+        expanded.update(_SEMANTIC_EXPANSIONS.get(token, []))
+        expanded.update(_ACRONYM_EXPANSIONS.get(token, []))
+    return expanded
+
+
+def _extract_phrases(query: str) -> list[str]:
+    lowered = query.lower()
+    quoted = re.findall(r"`([^`]+)`|\"([^\"]+)\"", lowered)
+    explicit = [a or b for a, b in quoted if a or b]
+    commandish = re.findall(
+        r"\b(?:show|debug|router|switchport|ip|ipv6|access-list|line|interface|"
+        r"spanning-tree|standby|vrrp|glbp|copy|write|logging|snmp)\s+[a-z0-9_./ -]+",
+        lowered,
+    )
+    return [p.strip() for p in explicit + commandish if len(p.strip()) >= 4]
+
+
+@lru_cache(maxsize=1)
+def _build_kb_index() -> dict[str, Any]:
+    """Build a dependency-free hybrid search index for the Cisco KB."""
+    kb_text = _load_knowledge_base()
+    if not kb_text:
+        return {"sections": [], "avgdl": 0.0, "idf": {}}
+
+    raw_sections = re.split(r"(?=^â–  |^■ |^Layer \d+ \|)", kb_text, flags=re.MULTILINE)
+    sections = []
+    doc_freq: Counter[str] = Counter()
+
+    for idx, raw in enumerate(s.strip() for s in raw_sections if s.strip()):
+        if raw.startswith("Layer ") and "#" not in raw:
+            continue
+        tokens = _tokenize(raw)
+        if not tokens:
+            continue
+        counts = Counter(tokens)
+        doc_freq.update(counts.keys())
+        lines = raw.splitlines()
+        heading = lines[0].strip() if lines else f"Section {idx + 1}"
+        sections.append({
+            "id": idx,
+            "heading": heading,
+            "text": raw,
+            "tokens": tokens,
+            "counts": counts,
+            "length": len(tokens),
+        })
+
+    total_docs = len(sections)
+    avgdl = sum(s["length"] for s in sections) / total_docs if total_docs else 0.0
+    idf = {
+        token: math.log(1 + (total_docs - freq + 0.5) / (freq + 0.5))
+        for token, freq in doc_freq.items()
+    }
+    logger.info("QA hybrid index built: %d sections", total_docs)
+    return {"sections": sections, "avgdl": avgdl, "idf": idf}
+
+
+def _bm25_score(query_tokens: set[str], section: dict[str, Any], idf: dict[str, float], avgdl: float) -> float:
+    if not query_tokens or not section["length"] or not avgdl:
+        return 0.0
+    k1 = 1.4
+    b = 0.75
+    score = 0.0
+    counts = section["counts"]
+    doc_len = section["length"]
+    for token in query_tokens:
+        tf = counts.get(token, 0)
+        if not tf:
+            continue
+        denom = tf + k1 * (1 - b + b * doc_len / avgdl)
+        score += idf.get(token, 0.0) * (tf * (k1 + 1) / denom)
+    return score
+
+
 def _extract_relevant_sections(kb_text: str, topic: str, max_chars: int = 4000) -> str:
     """
-    Simple keyword-based section extractor.
+    Hybrid section extractor.
 
-    Splits the knowledge base into sections delimited by '■' headings,
-    then ranks sections by keyword overlap with the topic query.
-    Returns up to max_chars of the most relevant content.
+    Combines BM25-style lexical ranking, semantic query expansion for common
+    Cisco intents/acronyms, and exact phrase/command boosts. This keeps command
+    precision while improving recall for natural-language questions.
     """
     if not kb_text:
         return ""
 
-    # Split on section headers (lines starting with ■ or Layer N |)
-    sections = re.split(r"(?=^■ |^Layer \d+ \|)", kb_text, flags=re.MULTILINE)
+    index = _build_kb_index()
+    sections = index["sections"]
+    if not sections:
+        return ""
 
-    topic_words = set(re.findall(r"\w+", topic.lower()))
+    base_tokens = _tokenize(topic)
+    base_set = set(base_tokens)
+    expanded_tokens = _expand_query_tokens(base_tokens)
+    phrases = _extract_phrases(topic)
 
-    # Score each section by keyword overlap
-    scored: list[tuple[int, str]] = []
+    scored: list[tuple[float, str]] = []
     for section in sections:
-        section_words = set(re.findall(r"\w+", section.lower()))
-        score = len(topic_words & section_words)
+        section_token_set = set(section["tokens"])
+        lexical = _bm25_score(base_set, section, index["idf"], index["avgdl"])
+        semantic = len(expanded_tokens & section_token_set) / max(len(expanded_tokens), 1)
+        heading_bonus = 1.5 if any(token in section["heading"].lower() for token in base_set) else 0.0
+        phrase_bonus = sum(2.0 for phrase in phrases if phrase in section["text"].lower())
+        intent_bonus = 0.0
+        if "remote" in base_set and {"ssh", "vty", "telnet"} & section_token_set:
+            intent_bonus += 3.0
+        if {"secure", "security"} & base_set and {"ssh", "aaa", "hardening", "access-class"} & section_token_set:
+            intent_bonus += 2.5
+        if "rogue" in base_set and {"dhcp", "snooping"} & section_token_set:
+            intent_bonus += 3.0
+        if {"redundancy", "failover"} & base_set and {"hsrp", "vrrp", "glbp", "standby"} & section_token_set:
+            intent_bonus += 3.0
+        score = lexical + (semantic * 3.0) + heading_bonus + phrase_bonus + intent_bonus
         if score > 0:
-            scored.append((score, section))
+            scored.append((score, section["text"]))
 
     scored.sort(key=lambda x: x[0], reverse=True)
 
-    # Collect top sections up to max_chars
     collected = []
     total = 0
-    for _, section in scored[:5]:
+    for _, section in scored[:6]:
         if total + len(section) > max_chars:
             remaining = max_chars - total
             if remaining > 200:
@@ -188,5 +337,6 @@ def build_cisco_kb_from_pdf_text(pdf_text: str, output_path: Optional[str] = Non
     path.write_text(pdf_text, encoding="utf-8")
     # Clear the LRU cache so next call re-reads
     _load_knowledge_base.cache_clear()
+    _build_kb_index.cache_clear()
     logger.info("Knowledge base written to %s (%d chars)", path, len(pdf_text))
     return str(path)
