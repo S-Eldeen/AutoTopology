@@ -27,6 +27,7 @@ V4.0 notes (no API changes vs V3.3):
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -34,7 +35,7 @@ from dotenv import load_dotenv
 
 from structranet.constants.gns3 import VLAN_PATCHED_KEY
 from structranet.constants.phase2 import ALLOWED_VALUE_TYPES, SOFTWARE_CONFIG_KEYS
-from structranet.ai.context_builder import build_configuration_brief
+from structranet.ai.context_builder import build_configuration_brief, resolve_port_name
 from structranet.ai.llm_utils import _call_with_retry, _env_int, _extract_json, _get_client
 from structranet.constants.schema import GNS3Project
 from structranet.ai.security_prompts import get_config_security_prompt
@@ -45,6 +46,183 @@ logger = logging.getLogger("structranet.config_agent")
 
 DEFAULT_MODEL = os.getenv("AI_MODEL", "openrouter/owl-alpha")
 BASE_MAX_TOKENS = _env_int("AI_MAX_TOKENS", 16384)
+
+
+def _link_endpoints(topology: Dict[str, Any]) -> Dict[str, List[dict]]:
+    links_by_node: Dict[str, List[dict]] = {}
+    for link in topology.get("links", []):
+        for ep in link.get("nodes", []):
+            nid = ep.get("node_id")
+            if nid:
+                links_by_node.setdefault(nid, []).append(link)
+    return links_by_node
+
+
+def _other_endpoint(link: dict, node_id: str) -> Optional[dict]:
+    for ep in link.get("nodes", []):
+        if ep.get("node_id") != node_id:
+            return ep
+    return None
+
+
+def _endpoint_for(link: dict, node_id: str) -> Optional[dict]:
+    for ep in link.get("nodes", []):
+        if ep.get("node_id") == node_id:
+            return ep
+    return None
+
+
+def _interface_for_link(link: dict, node_id: str, node_map: Dict[str, dict]) -> str:
+    ep = _endpoint_for(link, node_id) or {}
+    node = node_map.get(node_id, {})
+    return resolve_port_name(
+        node,
+        int(ep.get("adapter_number", 0)),
+        int(ep.get("port_number", 0)),
+        link_type=link.get("link_type", "ethernet"),
+    )
+
+
+def _switch_access_vlan(node: dict) -> Optional[int]:
+    for port in node.get("properties", {}).get("ports_mapping", []) or []:
+        if port.get("type") == "access":
+            vlan = int(port.get("vlan", 1) or 1)
+            if vlan > 1:
+                return vlan
+    return None
+
+
+def _branch_number(node_id: str) -> Optional[int]:
+    match = re.match(r"B(\d+)-", node_id or "")
+    return int(match.group(1)) if match else None
+
+
+def _try_deterministic_branch_room_configs(
+    phase1_dict: Dict[str, Any],
+    security_profile: str = "none",
+) -> Optional[Dict[str, Dict[str, Any]]]:
+    """Generate fast startup configs for deterministic branch-room topologies."""
+    topology = phase1_dict.get("topology", phase1_dict)
+    nodes = topology.get("nodes", [])
+    links = topology.get("links", [])
+    node_map = {node.get("node_id"): node for node in nodes if node.get("node_id")}
+
+    routers = [
+        node for node in nodes
+        if re.fullmatch(r"B\d+-R1", node.get("node_id", ""))
+        and node.get("node_type") in ("dynamips", "iou", "qemu")
+    ]
+    access_switches = [
+        node for node in nodes
+        if re.fullmatch(r"B\d+-ROOM\d+-SW\d+", node.get("node_id", ""))
+        and node.get("node_type") == "ethernet_switch"
+    ]
+    pcs = [
+        node for node in nodes
+        if re.fullmatch(r"B\d+-ROOM\d+-(?:MAIN-PC|PC\d+)", node.get("node_id", ""))
+        and node.get("node_type") == "vpcs"
+    ]
+    if not routers or not access_switches or not pcs:
+        return None
+
+    links_by_node = _link_endpoints(topology)
+    configs: Dict[str, Dict[str, Any]] = {}
+
+    vlan_by_switch: Dict[str, int] = {}
+    for switch in sorted(access_switches, key=lambda n: n.get("node_id", "")):
+        vlan = _switch_access_vlan(switch)
+        if vlan is None:
+            continue
+        vlan_by_switch[switch["node_id"]] = vlan
+
+    for router in sorted(routers, key=lambda n: n.get("node_id", "")):
+        router_id = router["node_id"]
+        branch = _branch_number(router_id) or 1
+        core_id = f"B{branch}-CORE-SW"
+        core_link = None
+        wan_link = None
+        for link in links_by_node.get(router_id, []):
+            other = _other_endpoint(link, router_id) or {}
+            other_id = other.get("node_id", "")
+            if other_id == core_id:
+                core_link = link
+            elif other_id == "ISP-SW":
+                wan_link = link
+
+        core_iface = _interface_for_link(core_link, router_id, node_map) if core_link else "FastEthernet0/0"
+        wan_iface = _interface_for_link(wan_link, router_id, node_map) if wan_link else "FastEthernet0/1"
+
+        branch_vlans = [
+            vlan for sid, vlan in vlan_by_switch.items()
+            if sid.startswith(f"B{branch}-")
+        ]
+        lines = [
+            f"hostname {router_id}",
+            "no ip domain-lookup",
+            "!",
+            f"interface {wan_iface}",
+            f" ip address 10.255.0.{branch} 255.255.255.0",
+            " no shutdown",
+            "!",
+            f"interface {core_iface}",
+            " no ip address",
+            " no shutdown",
+            "!",
+        ]
+        for vlan in sorted(branch_vlans):
+            lines.extend([
+                f"interface {core_iface}.{vlan}",
+                f" encapsulation dot1Q {vlan}",
+                f" ip address 10.{branch}.{vlan}.1 255.255.255.0",
+                " no shutdown",
+                "!",
+            ])
+        lines.extend([
+            "router ospf 1",
+            f" network 10.{branch}.0.0 0.0.255.255 area 0",
+            " network 10.255.0.0 0.0.0.255 area 0",
+            "!",
+        ])
+        if security_profile in ("basic", "enterprise"):
+            lines.extend([
+                "service password-encryption",
+                "enable secret structuranet",
+                "line vty 0 4",
+                " login local",
+                " transport input ssh",
+                "!",
+            ])
+        lines.append("end")
+        configs[router_id] = {"startup_config_content": "\n".join(lines) + "\n"}
+
+    host_counters: Dict[Tuple[int, int], int] = {}
+    for pc in sorted(pcs, key=lambda n: n.get("node_id", "")):
+        pc_id = pc["node_id"]
+        branch = _branch_number(pc_id) or 1
+        vlan = None
+        for link in links_by_node.get(pc_id, []):
+            other = _other_endpoint(link, pc_id) or {}
+            other_id = other.get("node_id", "")
+            if other_id in vlan_by_switch:
+                vlan = vlan_by_switch[other_id]
+                break
+        if vlan is None:
+            continue
+        key = (branch, vlan)
+        host_counters[key] = host_counters.get(key, 9) + 1
+        host_octet = min(host_counters[key], 254)
+        configs[pc_id] = {
+            "startup_script": (
+                f"ip 10.{branch}.{vlan}.{host_octet}/24 10.{branch}.{vlan}.1\n"
+                "save\n"
+            )
+        }
+
+    logger.info(
+        "Deterministic Phase 2 configs generated for branch-room topology: %d node(s)",
+        len(configs),
+    )
+    return configs or None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -398,10 +576,14 @@ def run_phase2(
     else:
         logger.info("Switch port patches already applied — skipping")
 
-    brief = build_configuration_brief(phase1_dict)
-    logger.info("Configuration brief: %d chars", len(brief))
-
-    llm_configs = generate_software_configs(brief, security_profile=security_profile)
+    llm_configs = _try_deterministic_branch_room_configs(
+        phase1_dict,
+        security_profile=security_profile,
+    )
+    if llm_configs is None:
+        brief = build_configuration_brief(phase1_dict)
+        logger.info("Configuration brief: %d chars", len(brief))
+        llm_configs = generate_software_configs(brief, security_profile=security_profile)
     if llm_configs is None:
         logger.error(
             "LLM failed to generate software configs — aborting Phase 2"

@@ -18,8 +18,8 @@ V5.0 — "First-Attempt Perfect" overhaul:
      Repairs run BEFORE Pydantic validation, so most topologies pass
      on attempt 1 without needing a retry.
 
-  3. Dynamic MAX_TOKENS:  scales with topology complexity so the LLM
-     never truncates large enterprise topologies.
+  3. AI_MAX_TOKENS is treated as a provider cap. The prompt stays compact
+     so generation fits smaller token budgets.
 
   4. Improved error feedback on retry:  includes a concrete repair hint
      (e.g. "Add a switch between NAT-ISP and the two routers") instead
@@ -79,6 +79,196 @@ _APPLIANCE_NODE_TYPES: frozenset = frozenset(
 
 # Node types with exactly 1 port — the most common source of validation failures
 _SINGLE_PORT_TYPES: frozenset = frozenset(["vpcs", "traceng", "nat"])
+
+_NUMBER_WORDS: Dict[str, int] = {
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
+    "nineteen": 19,
+    "twenty": 20,
+}
+
+
+def _extract_count(text: str, nouns: Tuple[str, ...], default: int) -> int:
+    """Extract a small integer near one of the requested nouns."""
+    normalized = text.lower()
+    noun_pattern = "|".join(re.escape(noun) for noun in nouns)
+    patterns = [
+        rf"\b(\d+)\s+(?:\w+\s+){{0,2}}(?:{noun_pattern})\b",
+        rf"\b({'|'.join(_NUMBER_WORDS)})\s+(?:\w+\s+){{0,2}}(?:{noun_pattern})\b",
+        rf"\b(?:{noun_pattern})\w*\s+(?:of|with|have|has|having)?\s*(\d+)\b",
+        rf"\b(?:{noun_pattern})\w*\s+(?:of|with|have|has|having)?\s*({'|'.join(_NUMBER_WORDS)})\b",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, normalized)
+        if not match:
+            continue
+        value = match.group(1)
+        count = int(value) if value.isdigit() else _NUMBER_WORDS.get(value, default)
+        return max(1, min(count, 200))
+    return default
+
+
+def _inventory_device(
+    devices: List[Dict[str, Any]],
+    *,
+    preferred_templates: Tuple[str, ...],
+    node_types: Tuple[str, ...],
+    name_keywords: Tuple[str, ...] = (),
+) -> Tuple[str, str]:
+    """Pick an available template from filtered inventory with safe fallbacks."""
+    preferred = {name.lower() for name in preferred_templates}
+    for device in devices:
+        template = str(
+            device.get("template")
+            or device.get("template_name")
+            or device.get("name")
+            or ""
+        )
+        node_type = str(device.get("node_type") or device.get("gns3_type") or "")
+        if template.lower() in preferred and node_type in node_types:
+            return template, node_type
+
+    for device in devices:
+        template = str(
+            device.get("template")
+            or device.get("template_name")
+            or device.get("name")
+            or ""
+        )
+        node_type = str(device.get("node_type") or device.get("gns3_type") or "")
+        haystack = " ".join(
+            str(device.get(key, "")) for key in ("template", "template_name", "name", "category")
+        ).lower()
+        if node_type in node_types and (
+            not name_keywords or any(keyword in haystack for keyword in name_keywords)
+        ):
+            return template, node_type
+
+    return preferred_templates[0], node_types[0]
+
+
+def _try_structured_branch_room_topology(
+    user_request: str,
+    devices: List[Dict[str, Any]],
+) -> Optional[TopologyRequest]:
+    """Build common multi-branch office designs without asking the LLM for huge JSON."""
+    text = user_request.lower()
+    if not (
+        re.search(r"\b(branch|branches|site|sites|country|countries)\b", text)
+        and re.search(r"\b(room|rooms|office|offices)\b", text)
+        and re.search(r"\b(person|persons|people|user|users|employee|employees)\b", text)
+    ):
+        return None
+
+    branches = _extract_count(text, ("branches", "branch", "sites", "site", "countries", "country"), 2)
+    rooms = _extract_count(text, ("rooms", "room", "offices", "office"), 3)
+    people = _extract_count(text, ("persons", "person", "people", "users", "user", "employees", "employee"), 10)
+    if branches * rooms * people > 180:
+        return None
+
+    router_template, router_type = _inventory_device(
+        devices,
+        preferred_templates=("Cisco 7200", "IOU L3", "Cisco 3745"),
+        node_types=("dynamips", "iou", "qemu"),
+        name_keywords=("router", "l3", "cisco"),
+    )
+    switch_template, switch_type = _inventory_device(
+        devices,
+        preferred_templates=("Ethernet Switch",),
+        node_types=("ethernet_switch",),
+    )
+    pc_template, pc_type = _inventory_device(
+        devices,
+        preferred_templates=("VPCS",),
+        node_types=("vpcs",),
+    )
+    nat_template, nat_type = _inventory_device(
+        devices,
+        preferred_templates=("NAT",),
+        node_types=("nat",),
+    )
+
+    nodes: List[NodeRequest] = []
+    connections: List[Connection] = []
+
+    def add_node(node_id: str, name: str, node_type: str, template: str) -> None:
+        nodes.append(
+            NodeRequest(
+                node_id=node_id,
+                name=name,
+                node_type=node_type,
+                template_name=template,
+            )
+        )
+
+    def link(a: str, b: str) -> None:
+        connections.append(Connection(from_node=a, to_node=b, link_type="ethernet"))
+
+    add_node("ISP-SW", "ISP-Internet-Switch", switch_type, switch_template)
+    add_node("NAT-INTERNET", "NAT-Internet", nat_type, nat_template)
+    link("NAT-INTERNET", "ISP-SW")
+
+    for branch in range(1, branches + 1):
+        branch_prefix = f"B{branch}"
+        router_id = f"{branch_prefix}-R1"
+        core_id = f"{branch_prefix}-CORE-SW"
+        add_node(router_id, f"Branch-{branch}-Edge-Router", router_type, router_template)
+        add_node(core_id, f"Branch-{branch}-Core-Switch", switch_type, switch_template)
+        link(router_id, "ISP-SW")
+        link(router_id, core_id)
+
+        for room in range(1, rooms + 1):
+            endpoint_ids: List[str] = []
+            main_pc_id = f"{branch_prefix}-ROOM{room}-MAIN-PC"
+            add_node(main_pc_id, f"Branch-{branch}-Room-{room}-Main-PC", pc_type, pc_template)
+            endpoint_ids.append(main_pc_id)
+
+            for person in range(1, people + 1):
+                pc_id = f"{branch_prefix}-ROOM{room}-PC{person:02d}"
+                add_node(pc_id, f"Branch-{branch}-Room-{room}-Person-{person}-PC", pc_type, pc_template)
+                endpoint_ids.append(pc_id)
+
+            # One 8-port switch can safely host 7 endpoint devices plus 1 uplink.
+            endpoints_per_switch = 7
+            switch_count = max(1, math.ceil(len(endpoint_ids) / endpoints_per_switch))
+            for switch_index in range(1, switch_count + 1):
+                sw_id = f"{branch_prefix}-ROOM{room}-SW{switch_index}"
+                add_node(
+                    sw_id,
+                    f"Branch-{branch}-Room-{room}-Access-SW{switch_index}",
+                    switch_type,
+                    switch_template,
+                )
+                link(core_id, sw_id)
+                start = (switch_index - 1) * endpoints_per_switch
+                stop = start + endpoints_per_switch
+                for endpoint_id in endpoint_ids[start:stop]:
+                    link(endpoint_id, sw_id)
+
+    project_name = f"company-{branches}-branch-{rooms}-room-network"
+    logger.info(
+        "Using deterministic branch-room topology: %d branches, %d rooms/branch, %d people/room",
+        branches,
+        rooms,
+        people,
+    )
+    return TopologyRequest(name=project_name, nodes=nodes, connections=connections)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1090,6 +1280,34 @@ def generate_network_topology(
     disallowed = {t.lower() for t in (disallowed_node_types or set())}
     current_history = list(chat_history or [])
     latest_thinking = ""
+
+    deterministic_request = _try_structured_branch_room_topology(user_request, devices)
+    if deterministic_request is not None:
+        latest_thinking = (
+            "Built a deterministic multi-branch office topology from the requested "
+            "branch, room, and user counts. Each person has one VPCS device, each "
+            "room has a main PC, and access switches are added so endpoint ports "
+            "stay within an 8-port switch design."
+        )
+        try:
+            req_errors = validate_topology_request(deterministic_request.model_dump())
+            if req_errors:
+                logger.warning("Deterministic TopologyRequest validation failed: %s", req_errors)
+            else:
+                project_dict = build_topology_from_request(deterministic_request)
+                topo_errors = validate_topology(project_dict)
+                if topo_errors:
+                    logger.warning("Deterministic topology validation failed: %s", topo_errors)
+                else:
+                    current_history.append({"role": "user", "content": user_request})
+                    current_history.append({"role": "assistant", "content": latest_thinking})
+                    return (
+                        GNS3Project.model_validate(project_dict),
+                        latest_thinking,
+                        current_history,
+                    )
+        except Exception as exc:
+            logger.warning("Deterministic topology generation failed; falling back to LLM: %s", exc)
 
     for attempt in range(1, MAX_RETRIES + 1):
         logger.info("Generation attempt %d/%d", attempt, MAX_RETRIES)

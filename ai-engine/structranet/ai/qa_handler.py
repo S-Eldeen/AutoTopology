@@ -6,7 +6,8 @@ protocol/command questions. Returns formatted Markdown with code blocks.
 
 Strategy:
   1. Load the knowledge base text once at module import (lazy singleton).
-  2. For each QA request, extract the relevant section(s) via keyword search.
+  2. For each QA request, extract relevant sections via hybrid search:
+     BM25-style lexical scoring + Cisco semantic/acronym expansion.
   3. Pass the extracted context + user question to the LLM with a strict
      "answer in Markdown with IOS code blocks" prompt.
   4. If the knowledge base has no relevant content, fall back to the LLM's
@@ -132,6 +133,26 @@ def _extract_phrases(query: str) -> list[str]:
     return [p.strip() for p in explicit + commandish if len(p.strip()) >= 4]
 
 
+def _split_kb_sections(kb_text: str) -> list[str]:
+    """Split KB text into heading sections, tolerant of PDF encoding artifacts."""
+    sections: list[str] = []
+    current: list[str] = []
+    for line in kb_text.splitlines():
+        stripped = line.strip()
+        is_heading = (
+            stripped.startswith("Layer ")
+            or stripped.startswith("■ ")
+            or stripped.startswith("â–")
+        )
+        if is_heading and current:
+            sections.append("\n".join(current).strip())
+            current = []
+        current.append(line)
+    if current:
+        sections.append("\n".join(current).strip())
+    return [section for section in sections if section]
+
+
 @lru_cache(maxsize=1)
 def _build_kb_index() -> dict[str, Any]:
     """Build a dependency-free hybrid search index for the Cisco KB."""
@@ -139,7 +160,7 @@ def _build_kb_index() -> dict[str, Any]:
     if not kb_text:
         return {"sections": [], "avgdl": 0.0, "idf": {}}
 
-    raw_sections = re.split(r"(?=^â–  |^■ |^Layer \d+ \|)", kb_text, flags=re.MULTILINE)
+    raw_sections = _split_kb_sections(kb_text)
     sections = []
     doc_freq: Counter[str] = Counter()
 

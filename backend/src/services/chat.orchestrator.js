@@ -123,20 +123,9 @@ function getDeterministicAction(userMessage, hasTopology) {
     return { type: 'message', content: 'I am StructuraNet AI, a network design assistant that can generate, revise, and export GNS3-ready topologies.' };
   }
 
-  if (isExistingTopologyRequest(msg)) {
-    return hasTopology
-      ? { type: 'show_topology' }
-      : { type: 'message', content: 'No topology exists in this session yet. Tell me what network to build first.' };
-  }
-
-  if (/\b(export|download|deploy|deployment kit|gns3|configs?|configuration files?)\b/.test(msg)) {
-    return hasTopology
-      ? { type: 'tool', tool: 'export_project', args: { securityProfile: inferSecurityProfile(msg) } }
-      : { type: 'message', content: 'No topology exists to export yet. Generate a topology first, then ask me to export it.' };
-  }
-
   const editPattern = /\b(add|remove|delete|change|modify|edit|replace|rename|connect|disconnect|move|update)\b/i;
-  const buildPattern = /\b(build|create|generate|design|make|draw|plan)\b.*\b(network|topology|diagram|router|switch|pc|host|firewall|site|branch|vlan)\b/i;
+  const buildPattern = /\b(build|create|generate|design|make|draw|plan)\b.*\b(a\s*)?(network|topology|diagram|router|switch|pc|host|firewall|site|branch|branches|vlan|company)\b/i;
+  const designForPattern = /\b(give|make|create|design|build)\b.*\b(network\s*)?design\s+for\b/i;
   const inventoryPattern = /\b\d+\s*(router|routers|switch|switches|pc|pcs|host|hosts|firewall|firewalls|server|servers)\b/i;
   const questionPattern = /^(what|how|why|when|where|can|could|would|should|do|does|did|is|are)\b/i;
 
@@ -148,12 +137,24 @@ function getDeterministicAction(userMessage, hasTopology) {
     };
   }
 
-  if (buildPattern.test(msg) || inventoryPattern.test(msg)) {
+  if (buildPattern.test(msg) || designForPattern.test(msg) || inventoryPattern.test(msg)) {
     return {
       type: 'tool',
       tool: 'generate_topology',
       args: { request: userMessage, securityProfile: inferSecurityProfile(msg) },
     };
+  }
+
+  if (isExistingTopologyRequest(msg)) {
+    return hasTopology
+      ? { type: 'show_topology' }
+      : { type: 'message', content: 'No topology exists in this session yet. Tell me what network to build first.' };
+  }
+
+  if (/\b(export|download|deploy|deployment kit|gns3|configs?|configuration files?)\b/.test(msg)) {
+    return hasTopology
+      ? { type: 'tool', tool: 'export_project', args: { securityProfile: inferSecurityProfile(msg) } }
+      : { type: 'message', content: 'No topology exists to export yet. Generate a topology first, then ask me to export it.' };
   }
 
   return null;
