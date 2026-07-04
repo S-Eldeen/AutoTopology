@@ -1,4 +1,4 @@
-import { PanelLeft, Plus } from 'lucide-react';
+import { PanelLeft, Plus, Share2 } from 'lucide-react';
 import { useChatStore } from '../../stores/chatStore.js';
 import { useAuthStore } from '../../stores/authStore.js';
 
@@ -10,7 +10,7 @@ import { useAuthStore } from '../../stores/authStore.js';
  *  - Center: session title (truncated)
  *  - Right: status indicator (Ready / Generating / Streaming / Thinking)
  */
-export default function ChatTopBar({ sidebarOpen, onToggleSidebar, activeSessionId }) {
+export default function ChatTopBar({ sidebarOpen, onToggleSidebar, activeSessionId, onShare }) {
   const sessions = useChatStore((s) => s.sessions);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const activeTool = useChatStore((s) => s.activeTool);
@@ -67,6 +67,16 @@ export default function ChatTopBar({ sidebarOpen, onToggleSidebar, activeSession
 
       {/* ── Right: status + account ─────────────────────── */}
       <div className="flex items-center gap-2">
+        {activeSessionId && (
+          <button
+            onClick={onShare}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white"
+            title="Share chat"
+            aria-label="Share chat"
+          >
+            <Share2 size={15} />
+          </button>
+        )}
         {usage && (
           <div className="hidden items-center rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 sm:flex">
             <span className="text-zinc-200">{usage.used} / {usage.limit}</span>

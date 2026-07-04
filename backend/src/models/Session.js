@@ -2,6 +2,7 @@
  * Chat Session model — owns messages + topology reference.
  */
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 
 const messageSchema = new mongoose.Schema({
   role: {
@@ -38,6 +39,11 @@ const sessionSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
     index: true,
+  },
+  share: {
+    enabled: { type: Boolean, default: false, index: true },
+    token: { type: String, default: null, index: true },
+    updatedAt: { type: Date, default: null },
   },
   messages: [messageSchema],
   // Reference to the latest topology generated in this session
@@ -76,6 +82,21 @@ sessionSchema.methods.autoTitle = function () {
 
 sessionSchema.methods.touch = function () {
   this.lastActivityAt = new Date();
+};
+
+sessionSchema.methods.enableShare = function () {
+  if (!this.share?.token) {
+    this.share = this.share || {};
+    this.share.token = crypto.randomBytes(24).toString('hex');
+  }
+  this.share.enabled = true;
+  this.share.updatedAt = new Date();
+};
+
+sessionSchema.methods.disableShare = function () {
+  this.share = this.share || {};
+  this.share.enabled = false;
+  this.share.updatedAt = new Date();
 };
 
 export const Session = mongoose.model('Session', sessionSchema);

@@ -5,6 +5,7 @@ import ChatTopBar from './ChatTopBar.jsx';
 import Sidebar from './Sidebar.jsx';
 import EmptyState from './EmptyState.jsx';
 import ConversationView from './ConversationView.jsx';
+import ShareChatDialog from './ShareChatDialog.jsx';
 
 /**
  * ChatLayout — root container for the chat page.
@@ -17,6 +18,7 @@ import ConversationView from './ConversationView.jsx';
  */
 export default function ChatLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState(null);
 
   const {
     sessions, activeSessionId, messages,
@@ -48,6 +50,7 @@ export default function ChatLayout() {
 
   // ── Determine view: empty state or conversation ────────
   const activeMessages = activeSessionId ? (messages[activeSessionId] || []) : [];
+  const activeSession = sessions.find((session) => session._id === activeSessionId);
   const showEmptyState = !activeSessionId || activeMessages.length === 0;
 
   const handleNewChat = async () => {
@@ -84,6 +87,7 @@ export default function ChatLayout() {
         onDelete={deleteSession}
         onRename={renameSession}
         onToggleStar={toggleStarSession}
+        onShare={(session) => setShareTarget(session)}
         isStreaming={isStreaming}
         streamingSessionId={streamingSessionId}
         onLogout={handleLogout}
@@ -96,6 +100,7 @@ export default function ChatLayout() {
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen((p) => !p)}
           activeSessionId={activeSessionId}
+          onShare={() => activeSession && setShareTarget(activeSession)}
         />
 
         {/* ── Chat content (empty state or conversation) ── */}
@@ -107,6 +112,12 @@ export default function ChatLayout() {
           )}
         </div>
       </div>
+      {shareTarget && (
+        <ShareChatDialog
+          session={sessions.find((session) => session._id === shareTarget._id) || shareTarget}
+          onClose={() => setShareTarget(null)}
+        />
+      )}
     </div>
   );
 }

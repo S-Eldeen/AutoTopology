@@ -56,6 +56,9 @@ export const sessionSchemas = {
   updateStarred: z.object({
     starred: z.boolean(),
   }),
+  updateShare: z.object({
+    enabled: z.boolean(),
+  }),
 };
 
 export const messageSchemas = {

@@ -33,6 +33,8 @@ export const sessionApi = {
   get: (id) => api.get(`/sessions/${id}`).then(r => r.data),
   updateTitle: (id, title) => api.patch(`/sessions/${id}/title`, { title }).then(r => r.data),
   updateStarred: (id, starred) => api.patch(`/sessions/${id}/star`, { starred }).then(r => r.data),
+  updateShare: (id, enabled) => api.patch(`/sessions/${id}/share`, { enabled }).then(r => r.data),
+  getShared: (token) => api.get(`/sessions/share/${token}`).then(r => r.data),
   delete: (id) => api.delete(`/sessions/${id}`).then(r => r.data),
   sendMessage: (id, content) => api.post(`/sessions/${id}/messages`, { content }).then(r => r.data),
 };

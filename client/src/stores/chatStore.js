@@ -266,6 +266,18 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  updateShareSession: async (sessionId, enabled) => {
+    const result = await sessionApi.updateShare(sessionId, enabled);
+    set((s) => ({
+      sessions: s.sessions.map((session) => (
+        session._id === sessionId
+          ? { ...session, share: { ...(session.share || {}), ...result.share } }
+          : session
+      )),
+    }));
+    return result.share;
+  },
+
   deleteSession: async (sessionId) => {
     await sessionApi.delete(sessionId);
     let shouldCreateReplacement = false;

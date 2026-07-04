@@ -22,7 +22,7 @@ router.get('/', requireAuth, async (req, res, next) => {
   try {
     const sessions = await Session.find({ userId: req.user._id })
       .sort({ starred: -1, lastActivityAt: -1 })
-      .select('title starred createdAt lastActivityAt currentTopologyId currentExportId')
+      .select('title starred share createdAt lastActivityAt currentTopologyId currentExportId')
       .limit(100);
     res.json({ sessions });
   } catch (err) { next(err); }
@@ -41,6 +41,26 @@ router.post('/', requireAuth, async (req, res, next) => {
 });
 
 // ── GET /api/sessions/:id — full session with messages ─────
+router.get('/share/:token', async (req, res, next) => {
+  try {
+    const session = await Session.findOne({
+      'share.token': req.params.token,
+      'share.enabled': true,
+    }).select('title messages createdAt lastActivityAt share.updatedAt');
+    if (!session) throw new NotFoundError('Shared chat not found or access was revoked');
+    res.json({
+      session: {
+        _id: session._id,
+        title: session.title,
+        messages: session.messages,
+        createdAt: session.createdAt,
+        lastActivityAt: session.lastActivityAt,
+        sharedAt: session.share?.updatedAt,
+      },
+    });
+  } catch (err) { next(err); }
+});
+
 router.get('/:id', requireAuth, async (req, res, next) => {
   try {
     const session = await Session.findById(req.params.id);
@@ -91,6 +111,30 @@ router.patch('/:id/star', requireAuth, validate(sessionSchemas.updateStarred), a
 });
 
 // ── DELETE /api/sessions/:id ───────────────────────────────
+router.patch('/:id/share', requireAuth, validate(sessionSchemas.updateShare), async (req, res, next) => {
+  try {
+    const session = await Session.findById(req.params.id);
+    if (!session) throw new NotFoundError('Session not found');
+    if (session.userId.toString() !== req.user._id.toString()) {
+      throw new ForbiddenError('Not your session');
+    }
+    if (req.body.enabled) {
+      session.enableShare();
+    } else {
+      session.disableShare();
+    }
+    await session.save();
+    res.json({
+      ok: true,
+      share: {
+        enabled: session.share.enabled,
+        token: session.share.enabled ? session.share.token : null,
+        updatedAt: session.share.updatedAt,
+      },
+    });
+  } catch (err) { next(err); }
+});
+
 router.delete('/:id', requireAuth, async (req, res, next) => {
   try {
     const session = await Session.findById(req.params.id);

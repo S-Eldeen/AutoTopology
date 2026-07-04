@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import ChatPage from './pages/ChatPage.jsx';
 import PlansPage from './pages/PlansPage.jsx';
+import SharedChatPage from './pages/SharedChatPage.jsx';
 import OnboardingModal from './components/auth/OnboardingModal.jsx';
 
 function ProtectedRoute({ children }) {
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/share/:token" element={<SharedChatPage />} />
         <Route
           path="/chat"
           element={

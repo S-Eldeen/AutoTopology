@@ -1,6 +1,6 @@
 import {
   X, Plus, MessageSquare, Trash2, LogOut, User, Settings, HelpCircle,
-  ChevronDown, MoreVertical, Star, Pencil,
+  ChevronDown, MoreVertical, Star, Pencil, Share2,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuthStore } from '../../stores/authStore.js';
@@ -16,7 +16,7 @@ import { useAuthStore } from '../../stores/authStore.js';
 export default function Sidebar({
   open, sessions, activeSessionId, user,
   onNewChat, onSelect, onDelete, onRename, onToggleStar,
-  isStreaming, streamingSessionId, onLogout, onClose,
+  onShare, isStreaming, streamingSessionId, onLogout, onClose,
 }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [menuSessionId, setMenuSessionId] = useState(null);
@@ -205,6 +205,17 @@ export default function Sidebar({
                 >
                   <Pencil size={13} className="text-zinc-400" />
                   Rename
+                </button>
+                <button
+                  disabled={disabled}
+                  onClick={() => {
+                    onShare(session);
+                    setMenuSessionId(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-zinc-200 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Share2 size={13} className="text-zinc-400" />
+                  Share
                 </button>
                 <button
                   disabled={disabled}
