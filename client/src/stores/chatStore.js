@@ -21,6 +21,83 @@ function resetMessage(resetAt) {
   return `Daily design limit reached. Your limit resets at ${time} tomorrow.`;
 }
 
+function toolLabel(tool) {
+  return {
+    generate_topology: 'Generate topology',
+    edit_topology: 'Edit topology',
+    export_project: 'Export project',
+    search_kb: 'Search knowledge base',
+  }[tool] || 'Run tool';
+}
+
+function stepFromProgress(step, index, data = {}) {
+  const text = String(step || '').trim();
+  const isPhase = text.toLowerCase().startsWith('phase:');
+  const isScriptLike = /command|script|python|node|export|generate|config|file|read|write|build/i.test(text);
+  return {
+    id: `${Date.now()}-${index}`,
+    label: isPhase ? text.replace(/^phase:\s*/i, '') : text,
+    detail: data.detail || text,
+    kind: isPhase ? 'phase' : isScriptLike ? 'script' : 'step',
+    status: 'complete',
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function startToolTrace(tool, args) {
+  const detail = args ? JSON.stringify(args, null, 2) : '';
+  return {
+    tool,
+    args,
+    status: 'running',
+    steps: [{
+      id: `${Date.now()}-start`,
+      label: toolLabel(tool),
+      detail,
+      kind: detail ? 'script' : 'step',
+      status: 'running',
+      createdAt: new Date().toISOString(),
+    }],
+  };
+}
+
+function finishToolTrace(trace, result) {
+  if (!trace) return null;
+  const steps = trace.steps.map((step) => (
+    step.status === 'running' ? { ...step, status: result.success ? 'complete' : 'error' } : step
+  ));
+  steps.push({
+    id: `${Date.now()}-done`,
+    label: result.success ? 'Done' : 'Failed',
+    detail: result.summary || result.error || '',
+    kind: 'done',
+    status: result.success ? 'complete' : 'error',
+    createdAt: new Date().toISOString(),
+  });
+  return {
+    ...trace,
+    status: result.success ? 'complete' : 'error',
+    summary: result.summary || result.error || '',
+    steps,
+  };
+}
+
+function attachTraceToLastAssistant(messages, sessionId, trace, toolSummary) {
+  const msgs = messages[sessionId] ? [...messages[sessionId]] : [];
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].role === 'assistant') {
+      msgs[i] = {
+        ...msgs[i],
+        tool: trace?.tool || msgs[i].tool,
+        toolSummary: toolSummary || msgs[i].toolSummary,
+        toolTrace: trace,
+      };
+      return { ...messages, [sessionId]: msgs };
+    }
+  }
+  return messages;
+}
+
 export const useChatStore = create((set, get) => ({
   // ── State ──────────────────────────────────────────────
   sessions: [],
@@ -29,7 +106,7 @@ export const useChatStore = create((set, get) => ({
   streamingText: '',     // Live LLM token stream
   isStreaming: false,
   streamingSessionId: null,
-  activeTool: null,      // { tool, args, steps: [] }
+  activeTool: null,      // { tool, args, status, steps: [] }
   topology: null,        // { topologyId, topology_dict, ... }
   exportKit: null,       // { exportId, files, ... }
   error: null,
@@ -293,32 +370,27 @@ export const useChatStore = create((set, get) => ({
         break;
 
       case 'tool_start':
-        set({ activeTool: { tool: data.tool, args: data.args, steps: [] } });
+        set({ activeTool: startToolTrace(data.tool, data.args) });
         break;
 
       case 'tool_progress':
         set((s) => {
           if (!s.activeTool) return {};
+          const steps = s.activeTool.steps.map((step) => (
+            step.status === 'running' ? { ...step, status: 'complete' } : step
+          ));
           return {
             activeTool: {
               ...s.activeTool,
-              steps: [...s.activeTool.steps, data.step],
+              steps: [...steps, stepFromProgress(data.step, steps.length, data)],
             },
           };
         });
         break;
 
       case 'tool_result':
-        set((s) => ({
-          messages: data.summary ? {
-            ...s.messages,
-            [sessionId]: [
-              ...(s.messages[sessionId] || []),
-              ...(s.streamingText ? [] : []), // streaming text already converted below
-            ],
-          } : s.messages,
-          activeTool: null,
-        }));
+        const finishedTrace = finishToolTrace(get().activeTool, data);
+        set({ activeTool: null });
         // Attach the pending topology to a message so it renders inline.
         //
         // Two cases:
@@ -344,6 +416,7 @@ export const useChatStore = create((set, get) => ({
                 content: text,
                 tool: data.tool,
                 toolSummary: data.summary,
+                toolTrace: finishedTrace,
                 topology: pendingTopo,
                 createdAt: new Date().toISOString(),
               }],
@@ -357,7 +430,13 @@ export const useChatStore = create((set, get) => ({
             const msgs = s.messages[sessionId] ? [...s.messages[sessionId]] : [];
             for (let i = msgs.length - 1; i >= 0; i--) {
               if (msgs[i].role === 'assistant') {
-                msgs[i] = { ...msgs[i], topology: pendingTopo };
+                msgs[i] = {
+                  ...msgs[i],
+                  tool: data.tool,
+                  toolSummary: data.summary,
+                  toolTrace: finishedTrace,
+                  topology: pendingTopo,
+                };
                 break;
               }
             }
@@ -366,6 +445,10 @@ export const useChatStore = create((set, get) => ({
               topology: null,
             };
           });
+        } else if (finishedTrace) {
+          set((s) => ({
+            messages: attachTraceToLastAssistant(s.messages, sessionId, finishedTrace, data.summary),
+          }));
         }
         break;
 

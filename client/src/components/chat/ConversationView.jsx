@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useChatStore } from '../../stores/chatStore.js';
 import { useAutoResizeTextarea } from '../../hooks/useAutoResizeTextarea.js';
+import ActionTrace from './ActionTrace.jsx';
 import DownloadKit from './DownloadKit.jsx';
 import TopologyPreviewCard from './TopologyPreviewCard.jsx';
 
@@ -73,34 +74,8 @@ export default function ConversationView() {
 
           {/* ── Tool indicator (glass-box) ───────────────── */}
           {activeTool && (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 backdrop-blur-sm p-5 animate-fade-in-up">
-              <div className="flex items-center gap-2 mb-3">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-400">
-                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="text-sm font-semibold text-emerald-300">
-                  {activeTool.tool === 'generate_topology' && 'Generating topology'}
-                  {activeTool.tool === 'edit_topology' && 'Editing topology'}
-                  {activeTool.tool === 'export_project' && 'Building deployment kit'}
-                </span>
-                <span className="ml-auto flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
-                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
-                </span>
-              </div>
-              {activeTool.steps?.length > 0 && (
-                <div className="space-y-2">
-                  {activeTool.steps.slice(-4).map((step, i) => (
-                    <div key={i} className="flex items-start gap-2 text-sm animate-fade-in">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400 mt-0.5 flex-shrink-0">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      <span className="text-zinc-300">{step}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="animate-fade-in-up">
+              <ActionTrace trace={activeTool} />
             </div>
           )}
 
@@ -289,6 +264,11 @@ function MessageItem({ message }) {
           </div>
         )}
         {/* Topology preview — inline with this message */}
+        {message.toolTrace && (
+          <div className="mt-3">
+            <ActionTrace trace={message.toolTrace} defaultOpen={false} />
+          </div>
+        )}
         {message.topology && (
           <div className="mt-4">
             <TopologyPreviewCard topology={message.topology} />
