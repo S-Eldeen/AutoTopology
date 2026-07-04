@@ -5,6 +5,21 @@
 import { create } from 'zustand';
 import { sessionApi } from '../services/endpoints.js';
 import { sseManager } from '../services/sse.js';
+import { useAuthStore } from './authStore.js';
+
+function isDesignPrompt(content = '') {
+  const msg = String(content).toLowerCase();
+  return /\b(build|create|generate|design|make|draw|plan)\b.*\b(network|topology|diagram|router|switch|pc|host|firewall|site|branch|branches|vlan|company)\b/i.test(msg)
+    || /\b(give|make|create|design|build)\b.*\b(network\s*)?design\s+for\b/i.test(msg);
+}
+
+function resetMessage(resetAt) {
+  const resetDate = resetAt ? new Date(resetAt) : null;
+  const time = resetDate && !Number.isNaN(resetDate.getTime())
+    ? resetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : 'the same time';
+  return `Daily design limit reached. Your limit resets at ${time} tomorrow.`;
+}
 
 export const useChatStore = create((set, get) => ({
   // ── State ──────────────────────────────────────────────
@@ -13,6 +28,7 @@ export const useChatStore = create((set, get) => ({
   messages: {},          // sessionId → Message[]
   streamingText: '',     // Live LLM token stream
   isStreaming: false,
+  streamingSessionId: null,
   activeTool: null,      // { tool, args, steps: [] }
   topology: null,        // { topologyId, topology_dict, ... }
   exportKit: null,       // { exportId, files, ... }
@@ -33,11 +49,12 @@ export const useChatStore = create((set, get) => ({
   createSession: async () => {
     const { sessionId } = await sessionApi.create();
     set((s) => ({
-      sessions: [{ _id: sessionId, title: 'New Chat', createdAt: new Date().toISOString() }, ...s.sessions],
+      sessions: [{ _id: sessionId, title: 'New Chat', starred: false, createdAt: new Date().toISOString() }, ...s.sessions],
       activeSessionId: sessionId,
       messages: { ...s.messages, [sessionId]: [] },
       streamingText: '',
       isStreaming: false,
+      streamingSessionId: null,
       activeTool: null,
       topology: null,
       exportKit: null,
@@ -48,7 +65,15 @@ export const useChatStore = create((set, get) => ({
   },
 
   selectSession: async (sessionId) => {
-    set({ activeSessionId: sessionId, loadingSession: true, streamingText: '', isStreaming: false, activeTool: null, error: null });
+    set({
+      activeSessionId: sessionId,
+      loadingSession: true,
+      streamingText: '',
+      isStreaming: false,
+      streamingSessionId: null,
+      activeTool: null,
+      error: null,
+    });
     try {
       const { session, topology, exportJob } = await sessionApi.get(sessionId);
       // Attach the loaded topology to the last assistant message that
@@ -115,23 +140,88 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  renameSession: async (sessionId, title) => {
+    const cleanTitle = title.trim();
+    if (!cleanTitle) throw new Error('Chat name cannot be empty');
+    const previous = get().sessions;
+    set((s) => ({
+      sessions: s.sessions.map((session) => (
+        session._id === sessionId ? { ...session, title: cleanTitle } : session
+      )),
+    }));
+    try {
+      const result = await sessionApi.updateTitle(sessionId, cleanTitle);
+      if (result.session) {
+        set((s) => ({
+          sessions: s.sessions.map((session) => (
+            session._id === sessionId ? { ...session, ...result.session } : session
+          )),
+        }));
+      }
+    } catch (err) {
+      set({ sessions: previous });
+      throw err;
+    }
+  },
+
+  toggleStarSession: async (sessionId) => {
+    const session = get().sessions.find((item) => item._id === sessionId);
+    if (!session) return;
+    const nextStarred = !session.starred;
+    const previous = get().sessions;
+    set((s) => ({
+      sessions: s.sessions.map((item) => (
+        item._id === sessionId ? { ...item, starred: nextStarred } : item
+      )),
+    }));
+    try {
+      const result = await sessionApi.updateStarred(sessionId, nextStarred);
+      if (result.session) {
+        set((s) => ({
+          sessions: s.sessions.map((item) => (
+            item._id === sessionId ? { ...item, ...result.session } : item
+          )),
+        }));
+      }
+    } catch (err) {
+      set({ sessions: previous });
+      throw err;
+    }
+  },
+
   deleteSession: async (sessionId) => {
     await sessionApi.delete(sessionId);
+    let shouldCreateReplacement = false;
     set((s) => {
       const newMessages = { ...s.messages };
       delete newMessages[sessionId];
       const newSessions = s.sessions.filter(x => x._id !== sessionId);
+      shouldCreateReplacement = s.activeSessionId === sessionId;
       return {
         sessions: newSessions,
         messages: newMessages,
-        activeSessionId: s.activeSessionId === sessionId ? null : s.activeSessionId,
+        activeSessionId: shouldCreateReplacement ? null : s.activeSessionId,
+        streamingText: shouldCreateReplacement ? '' : s.streamingText,
+        isStreaming: shouldCreateReplacement ? false : s.isStreaming,
+        streamingSessionId: shouldCreateReplacement ? null : s.streamingSessionId,
+        activeTool: shouldCreateReplacement ? null : s.activeTool,
+        topology: shouldCreateReplacement ? null : s.topology,
+        exportKit: shouldCreateReplacement ? null : s.exportKit,
       };
     });
+    if (shouldCreateReplacement) {
+      await get().createSession();
+    }
   },
 
   sendMessage: async (content) => {
     const sessionId = get().activeSessionId;
     if (!sessionId || !content.trim()) return;
+    const usage = useAuthStore.getState().user?.usage;
+    if (isDesignPrompt(content) && usage && usage.remaining <= 0) {
+      set({ error: resetMessage(usage.resetAt) });
+      return;
+    }
 
     // Append user message locally
     set((s) => ({
@@ -141,6 +231,7 @@ export const useChatStore = create((set, get) => ({
       },
       streamingText: '',
       isStreaming: true,
+      streamingSessionId: sessionId,
       activeTool: null,
       error: null,
     }));
@@ -148,7 +239,13 @@ export const useChatStore = create((set, get) => ({
     try {
       await sessionApi.sendMessage(sessionId, content);
     } catch (err) {
-      set({ isStreaming: false, error: 'Failed to send message' });
+      const apiError = err?.response?.data?.error;
+      if (apiError?.usage) useAuthStore.getState().setUsage(apiError.usage);
+      set({
+        isStreaming: false,
+        streamingSessionId: null,
+        error: apiError?.message || 'Failed to send message',
+      });
     }
   },
 
@@ -178,7 +275,7 @@ export const useChatStore = create((set, get) => ({
         },
       }));
     }
-    set({ isStreaming: false, activeTool: null });
+    set({ isStreaming: false, streamingSessionId: null, activeTool: null });
   },
 
   // ── SSE event handler — THE single entry point ────────
@@ -191,6 +288,7 @@ export const useChatStore = create((set, get) => ({
         set((s) => ({
           streamingText: s.streamingText + (data.token || ''),
           isStreaming: true,
+          streamingSessionId: sessionId,
         }));
         break;
 
@@ -306,6 +404,10 @@ export const useChatStore = create((set, get) => ({
         });
         break;
 
+      case 'usage_update':
+        useAuthStore.getState().setUsage(data.usage);
+        break;
+
       case 'agent_message':
         // Final message replaces streaming text
         set((s) => ({
@@ -324,7 +426,7 @@ export const useChatStore = create((set, get) => ({
         break;
 
       case 'complete':
-        set({ isStreaming: false, activeTool: null });
+        set({ isStreaming: false, streamingSessionId: null, activeTool: null });
         // If there's leftover streaming text that wasn't followed by tool_result or agent_message, save it
         if (get().streamingText) {
           const text = get().streamingText;
@@ -343,7 +445,7 @@ export const useChatStore = create((set, get) => ({
         break;
 
       case 'error':
-        set({ isStreaming: false, activeTool: null, error: data.message });
+        set({ isStreaming: false, streamingSessionId: null, activeTool: null, error: data.message });
         break;
 
       case 'keepalive':
@@ -361,6 +463,7 @@ export const useChatStore = create((set, get) => ({
     set({
       streamingText: '',
       isStreaming: false,
+      streamingSessionId: null,
       activeTool: null,
       topology: null,
       exportKit: null,

@@ -10,6 +10,7 @@ const SSE_EVENTS = [
   'tool_result',
   'topology_ready',
   'deployment_ready',
+  'usage_update',
   'agent_message',
   'complete',
   'error',

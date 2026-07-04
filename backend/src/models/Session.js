@@ -34,6 +34,11 @@ const sessionSchema = new mongoose.Schema({
     trim: true,
     maxlength: 200,
   },
+  starred: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
   messages: [messageSchema],
   // Reference to the latest topology generated in this session
   currentTopologyId: {

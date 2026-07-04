@@ -11,9 +11,10 @@ import { User } from '../models/User.js';
 import { validate } from '../middleware/validate.js';
 import { profileSchemas } from '../middleware/schemas.js';
 import { requireAuth } from '../middleware/auth.js';
-import { NotFoundError, EngineError } from '../utils/errors.js';
+import { AppError, NotFoundError, EngineError } from '../utils/errors.js';
 import aiEngine from '../services/ai-engine.bridge.js';
 import logger from '../utils/logger.js';
+import { ensureFreshUsage, usagePayload } from '../services/plan.service.js';
 
 const router = Router();
 
@@ -24,6 +25,31 @@ router.get('/', requireAuth, async (req, res, next) => {
     const user = await User.findById(req.user._id);
     if (!user) throw new NotFoundError('User not found');
     res.json({ profile: user.gns3Profile || { isCalibrated: false, imageMap: {} } });
+  } catch (err) { next(err); }
+});
+
+// ── GET /api/profile/usage ─────────────────────────────────
+router.get('/usage', requireAuth, async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) throw new NotFoundError('User not found');
+    const usage = await ensureFreshUsage(user);
+    res.json({ usage });
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /api/profile/plan ────────────────────────────────
+router.patch('/plan', requireAuth, validate(profileSchemas.updatePlan), async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) throw new NotFoundError('User not found');
+    if (req.body.plan !== 'free') {
+      throw new AppError('Use checkout to upgrade to a paid plan', 402, 'PAYMENT_REQUIRED');
+    }
+    user.plan = req.body.plan;
+    await user.save();
+    const usage = usagePayload(user);
+    res.json({ user: { ...user.toJSON(), usage }, usage });
   } catch (err) { next(err); }
 });
 

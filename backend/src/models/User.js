@@ -32,6 +32,16 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user',
   },
+  plan: {
+    type: String,
+    enum: ['free', 'plus', 'pro'],
+    default: 'free',
+    index: true,
+  },
+  designUsage: {
+    used: { type: Number, default: 0, min: 0 },
+    windowStartedAt: { type: Date, default: Date.now },
+  },
   // Refresh tokens — stored hashed so DB leak doesn't grant access
   refreshTokens: [{
     tokenHash: String,

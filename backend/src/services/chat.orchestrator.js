@@ -22,6 +22,7 @@ import { Topology } from '../models/Topology.js';
 import { ExportJob } from '../models/Export.js';
 import { User } from '../models/User.js';
 import logger from '../utils/logger.js';
+import { consumeDesign } from './plan.service.js';
 import { LLMError, EngineError } from '../utils/errors.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -520,6 +521,7 @@ async function executeTool(sessionId, userId, toolName, args) {
       });
 
       summary = `Generated topology "${topology.name}" with ${topology.nodeCount} devices and ${topology.linkCount} links.`;
+      const usage = await consumeDesign(await User.findById(userId));
 
       sseService.broadcast(sessionId, 'topology_ready', {
         topologyId: topology._id,
@@ -530,6 +532,7 @@ async function executeTool(sessionId, userId, toolName, args) {
         assumptions: result.assumptions,
         thinking_text: result.thinking_text,
       });
+      sseService.broadcast(sessionId, 'usage_update', { usage });
 
     } else if (toolName === 'edit_topology') {
       const session = await Session.findById(sessionId);
@@ -559,6 +562,7 @@ async function executeTool(sessionId, userId, toolName, args) {
 
       await Session.findByIdAndUpdate(sessionId, { currentTopologyId: updated._id });
       summary = `Updated topology: ${updated.name} (${updated.nodeCount} devices, ${updated.linkCount} links).`;
+      const usage = await consumeDesign(await User.findById(userId));
 
       sseService.broadcast(sessionId, 'topology_ready', {
         topologyId: updated._id,
@@ -567,6 +571,7 @@ async function executeTool(sessionId, userId, toolName, args) {
         requirements: result.requirements,
         thinking_text: result.thinking_text,
       });
+      sseService.broadcast(sessionId, 'usage_update', { usage });
 
     } else if (toolName === 'export_project') {
       const session = await Session.findById(sessionId);

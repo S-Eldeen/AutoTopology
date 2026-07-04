@@ -15,6 +15,11 @@ import config from '../config/index.js';
 import { User } from '../models/User.js';
 import { AuthError, ConflictError, ValidationError, NotFoundError } from '../utils/errors.js';
 import logger from '../utils/logger.js';
+import { ensureFreshUsage, usagePayload } from './plan.service.js';
+
+function serializeUser(user) {
+  return { ...user.toJSON(), usage: usagePayload(user) };
+}
 
 // ── Token signing ──────────────────────────────────────────
 function signAccessToken(user) {
@@ -74,10 +79,11 @@ export async function register({ email, password, name }) {
   });
 
   await user.save();
+  await ensureFreshUsage(user);
 
   const accessToken = signAccessToken(user);
   logger.info(`User registered: ${user.email}`);
-  return { user: user.toJSON(), accessToken, refreshToken };
+  return { user: serializeUser(user), accessToken, refreshToken };
 }
 
 /**
@@ -139,10 +145,11 @@ export async function login({ email, password, userAgent = '' }) {
   user.refreshTokens = user.refreshTokens.filter(t => t.expiresAt > now);
 
   await user.save();
+  await ensureFreshUsage(user);
 
   const accessToken = signAccessToken(user);
   logger.info(`User logged in: ${user.email}`);
-  return { user: user.toJSON(), accessToken, refreshToken };
+  return { user: serializeUser(user), accessToken, refreshToken };
 }
 
 /**
@@ -187,9 +194,10 @@ export async function refresh({ refreshToken }) {
   });
 
   await user.save();
+  await ensureFreshUsage(user);
 
   const accessToken = signAccessToken(user);
-  return { user: user.toJSON(), accessToken, refreshToken: newRefreshToken };
+  return { user: serializeUser(user), accessToken, refreshToken: newRefreshToken };
 }
 
 /**
@@ -220,5 +228,6 @@ export async function logout({ refreshToken }) {
 export async function getMe(userId) {
   const user = await User.findById(userId);
   if (!user) throw new NotFoundError('User not found');
-  return { user: user.toJSON() };
+  await ensureFreshUsage(user);
+  return { user: serializeUser(user) };
 }

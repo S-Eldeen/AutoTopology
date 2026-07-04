@@ -7,6 +7,7 @@ import LandingPage from './pages/LandingPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import ChatPage from './pages/ChatPage.jsx';
+import PlansPage from './pages/PlansPage.jsx';
 import OnboardingModal from './components/auth/OnboardingModal.jsx';
 
 function ProtectedRoute({ children }) {
@@ -60,6 +61,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ChatPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/plans"
+          element={
+            <ProtectedRoute>
+              <PlansPage />
             </ProtectedRoute>
           }
         />

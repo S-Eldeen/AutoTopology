@@ -19,6 +19,7 @@ import profileRoutes from './routes/profile.routes.js';
 import sessionRoutes from './routes/session.routes.js';
 import topologyRoutes from './routes/topology.routes.js';
 import exportRoutes from './routes/export.routes.js';
+import paymentRoutes, { stripeWebhookHandler } from './routes/payment.routes.js';
 
 const app = express();
 
@@ -29,6 +30,9 @@ app.use(cors({
   origin: config.clientUrl,
   credentials: true,
 }));
+
+// Stripe webhooks need the original raw body for signature verification.
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), stripeWebhookHandler);
 
 // Body parsers
 app.use(express.json({ limit: '1mb' }));
@@ -69,6 +73,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/topology', topologyRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // ── 404 + error handler (must be last) ──────────────────────
 app.use(notFoundHandler);

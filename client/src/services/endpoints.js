@@ -15,9 +15,16 @@ export const authApi = {
 export const profileApi = {
   get: () => api.get('/profile').then(r => r.data),
   update: (data) => api.put('/profile', data).then(r => r.data),
+  usage: () => api.get('/profile/usage').then(r => r.data),
+  updatePlan: (plan) => api.patch('/profile/plan', { plan }).then(r => r.data),
   // Fetch the full appliance catalog from the Python AI engine (SSOT).
   // Used by the OnboardingModal to render a searchable device dropdown.
   getCatalog: () => api.get('/profile/catalog').then(r => r.data),
+};
+
+export const paymentApi = {
+  checkout: (plan) => api.post('/payments/checkout', { plan }).then(r => r.data),
+  confirm: (sessionId) => api.post('/payments/confirm', { sessionId }).then(r => r.data),
 };
 
 export const sessionApi = {
@@ -25,6 +32,7 @@ export const sessionApi = {
   create: () => api.post('/sessions').then(r => r.data),
   get: (id) => api.get(`/sessions/${id}`).then(r => r.data),
   updateTitle: (id, title) => api.patch(`/sessions/${id}/title`, { title }).then(r => r.data),
+  updateStarred: (id, starred) => api.patch(`/sessions/${id}/star`, { starred }).then(r => r.data),
   delete: (id) => api.delete(`/sessions/${id}`).then(r => r.data),
   sendMessage: (id, content) => api.post(`/sessions/${id}/messages`, { content }).then(r => r.data),
 };

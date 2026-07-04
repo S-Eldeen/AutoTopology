@@ -3,6 +3,7 @@
  */
 import { Router } from 'express';
 import { Session } from '../models/Session.js';
+import { User } from '../models/User.js';
 import { Topology } from '../models/Topology.js';
 import { ExportJob } from '../models/Export.js';
 import { validate } from '../middleware/validate.js';
@@ -12,6 +13,7 @@ import { NotFoundError, ForbiddenError } from '../utils/errors.js';
 import sseService from '../services/sse.service.js';
 import * as orchestrator from '../services/chat.orchestrator.js';
 import logger from '../utils/logger.js';
+import { ensureFreshUsage, isDesignRequest } from '../services/plan.service.js';
 
 const router = Router();
 
@@ -19,8 +21,8 @@ const router = Router();
 router.get('/', requireAuth, async (req, res, next) => {
   try {
     const sessions = await Session.find({ userId: req.user._id })
-      .sort({ lastActivityAt: -1 })
-      .select('title createdAt lastActivityAt currentTopologyId currentExportId')
+      .sort({ starred: -1, lastActivityAt: -1 })
+      .select('title starred createdAt lastActivityAt currentTopologyId currentExportId')
       .limit(100);
     res.json({ sessions });
   } catch (err) { next(err); }
@@ -70,7 +72,21 @@ router.patch('/:id/title', requireAuth, validate(sessionSchemas.updateTitle), as
     }
     session.title = req.body.title;
     await session.save();
-    res.json({ ok: true });
+    res.json({ ok: true, session });
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /api/sessions/:id/star ───────────────────────────
+router.patch('/:id/star', requireAuth, validate(sessionSchemas.updateStarred), async (req, res, next) => {
+  try {
+    const session = await Session.findById(req.params.id);
+    if (!session) throw new NotFoundError('Session not found');
+    if (session.userId.toString() !== req.user._id.toString()) {
+      throw new ForbiddenError('Not your session');
+    }
+    session.starred = req.body.starred;
+    await session.save();
+    res.json({ ok: true, session });
   } catch (err) { next(err); }
 });
 
@@ -107,6 +123,21 @@ router.post('/:id/messages', requireAuth, validate(messageSchemas.create), async
     if (!session) throw new NotFoundError('Session not found');
     if (session.userId.toString() !== req.user._id.toString()) {
       throw new ForbiddenError('Not your session');
+    }
+
+    if (isDesignRequest(req.body.content)) {
+      const user = await User.findById(req.user._id);
+      if (!user) throw new NotFoundError('User not found');
+      const usage = await ensureFreshUsage(user);
+      if (usage.remaining <= 0) {
+        return res.status(429).json({
+          error: {
+            message: `Daily design limit reached. Your limit resets at ${new Date(usage.resetAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} tomorrow.`,
+            code: 'PLAN_LIMIT_REACHED',
+            usage,
+          },
+        });
+      }
     }
 
     // Kick off the orchestrator (don't await — runs in background, streams via SSE)

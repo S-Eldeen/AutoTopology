@@ -20,7 +20,9 @@ export default function ChatLayout() {
 
   const {
     sessions, activeSessionId, messages,
-    loadSessions, createSession, selectSession, deleteSession, reset,
+    isStreaming, streamingSessionId,
+    loadSessions, createSession, selectSession, deleteSession,
+    renameSession, toggleStarSession, reset,
   } = useChatStore();
 
   const user = useAuthStore((s) => s.user);
@@ -80,6 +82,10 @@ export default function ChatLayout() {
         onNewChat={handleNewChat}
         onSelect={handleSelectSession}
         onDelete={deleteSession}
+        onRename={renameSession}
+        onToggleStar={toggleStarSession}
+        isStreaming={isStreaming}
+        streamingSessionId={streamingSessionId}
         onLogout={handleLogout}
         onClose={() => setSidebarOpen(false)}
       />

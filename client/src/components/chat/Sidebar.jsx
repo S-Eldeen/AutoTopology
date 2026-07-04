@@ -1,5 +1,8 @@
-import { X, Plus, MessageSquare, Trash2, LogOut, User, Settings, HelpCircle, ChevronDown } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import {
+  X, Plus, MessageSquare, Trash2, LogOut, User, Settings, HelpCircle,
+  ChevronDown, MoreVertical, Star, Pencil,
+} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuthStore } from '../../stores/authStore.js';
 
 /**
@@ -12,17 +15,215 @@ import { useAuthStore } from '../../stores/authStore.js';
  */
 export default function Sidebar({
   open, sessions, activeSessionId, user,
-  onNewChat, onSelect, onDelete, onLogout, onClose,
+  onNewChat, onSelect, onDelete, onRename, onToggleStar,
+  isStreaming, streamingSessionId, onLogout, onClose,
 }) {
   const [profileOpen, setProfileOpen] = useState(false);
+  const [menuSessionId, setMenuSessionId] = useState(null);
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [renameError, setRenameError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [busySessionId, setBusySessionId] = useState(null);
+  const menuRef = useRef(null);
   const openProfileModal = useAuthStore((s) => s.openProfileModal);
+  const starredSessions = useMemo(() => sessions.filter((session) => session.starred), [sessions]);
+  const recentSessions = useMemo(() => sessions.filter((session) => !session.starred), [sessions]);
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        setMenuSessionId(null);
+        if (renamingId) {
+          setRenamingId(null);
+          setRenameError('');
+          return;
+        }
+        onClose();
+      }
+    };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [open, onClose]);
+  }, [open, onClose, renamingId]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuSessionId(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const isSessionStreaming = (sessionId) => Boolean(isStreaming && streamingSessionId === sessionId);
+
+  const startRename = (session) => {
+    if (isSessionStreaming(session._id)) return;
+    setRenamingId(session._id);
+    setRenameValue(session.title || 'New Chat');
+    setRenameError('');
+    setMenuSessionId(null);
+  };
+
+  const saveRename = async (sessionId) => {
+    if (busySessionId === sessionId) return;
+    const cleanName = renameValue.trim();
+    if (!cleanName) {
+      setRenameError('Name required');
+      return;
+    }
+    setBusySessionId(sessionId);
+    try {
+      await onRename(sessionId, cleanName);
+      setRenamingId(null);
+      setRenameError('');
+    } finally {
+      setBusySessionId(null);
+    }
+  };
+
+  const toggleStar = async (session) => {
+    if (isSessionStreaming(session._id)) return;
+    setBusySessionId(session._id);
+    try {
+      await onToggleStar(session._id);
+      setMenuSessionId(null);
+    } finally {
+      setBusySessionId(null);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget || isSessionStreaming(deleteTarget._id)) return;
+    setBusySessionId(deleteTarget._id);
+    try {
+      await onDelete(deleteTarget._id);
+      setDeleteTarget(null);
+      setMenuSessionId(null);
+    } finally {
+      setBusySessionId(null);
+    }
+  };
+
+  const renderSessionList = (items) => (
+    <ul className="space-y-0.5">
+      {items.map((session) => {
+        const active = activeSessionId === session._id;
+        const streamingThisSession = isSessionStreaming(session._id);
+        const disabled = streamingThisSession || busySessionId === session._id;
+        const renaming = renamingId === session._id;
+
+        return (
+          <li key={session._id} className="relative">
+            <div
+              className={`group flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm transition-colors ${
+                active
+                  ? 'bg-zinc-800 text-white'
+                  : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
+              } ${renaming ? 'items-start' : 'cursor-pointer'}`}
+              onClick={() => {
+                if (!renaming) onSelect(session._id);
+              }}
+            >
+              <MessageSquare size={14} className="mt-0.5 flex-shrink-0 opacity-60" />
+              {renaming ? (
+                <div className="min-w-0 flex-1" onClick={(event) => event.stopPropagation()}>
+                  <input
+                    autoFocus
+                    value={renameValue}
+                    disabled={disabled}
+                    onChange={(event) => {
+                      setRenameValue(event.target.value);
+                      setRenameError('');
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        saveRename(session._id);
+                      }
+                      if (event.key === 'Escape') {
+                        setRenamingId(null);
+                        setRenameError('');
+                      }
+                    }}
+                    onBlur={() => {
+                      if (renamingId !== session._id || busySessionId === session._id) return;
+                      if (renameValue.trim()) {
+                        saveRename(session._id);
+                      } else {
+                        setRenameError('Name required');
+                      }
+                    }}
+                    className="h-7 w-full rounded-md border border-zinc-700 bg-zinc-950 px-2 text-[13px] text-white outline-none focus:border-emerald-500 disabled:opacity-60"
+                  />
+                  {renameError && <p className="mt-1 text-[10px] text-red-400">{renameError}</p>}
+                </div>
+              ) : (
+                <>
+                  <span className="min-w-0 flex-1 truncate text-[13px]">{session.title || 'New Chat'}</span>
+                  {session.starred && <Star size={12} className="flex-shrink-0 fill-amber-400 text-amber-400" />}
+                  {streamingThisSession && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-label="Streaming" />
+                  )}
+                  <button
+                    disabled={disabled}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setMenuSessionId((current) => (current === session._id ? null : session._id));
+                    }}
+                    className="p-1 rounded-md text-zinc-500 opacity-0 transition-all hover:bg-zinc-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 group-hover:opacity-100"
+                    aria-label="Chat actions"
+                  >
+                    <MoreVertical size={14} />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {menuSessionId === session._id && !renaming && (
+              <div
+                ref={menuRef}
+                className="absolute right-1 top-9 z-50 w-36 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-800 py-1 shadow-xl"
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  disabled={disabled}
+                  onClick={() => toggleStar(session)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-zinc-200 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Star size={13} className={session.starred ? 'fill-amber-400 text-amber-400' : 'text-zinc-400'} />
+                  {session.starred ? 'Unstar' : 'Star'}
+                </button>
+                <button
+                  disabled={disabled}
+                  onClick={() => startRename(session)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-zinc-200 hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Pencil size={13} className="text-zinc-400" />
+                  Rename
+                </button>
+                <button
+                  disabled={disabled}
+                  onClick={() => {
+                    setDeleteTarget(session);
+                    setMenuSessionId(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-red-300 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Trash2 size={13} />
+                  Delete
+                </button>
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
 
   return (
     <>
@@ -80,31 +281,18 @@ export default function Sidebar({
             </div>
           ) : (
             <>
-              <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-2 py-2">Recent</p>
-              <ul className="space-y-0.5">
-                {sessions.map((session) => (
-                  <li key={session._id}>
-                    <div
-                      className={`group flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm cursor-pointer transition-colors ${
-                        activeSessionId === session._id
-                          ? 'bg-zinc-800 text-white'
-                          : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
-                      }`}
-                      onClick={() => onSelect(session._id)}
-                    >
-                      <MessageSquare size={14} className="flex-shrink-0 opacity-60" />
-                      <span className="flex-1 truncate text-[13px]">{session.title || 'New Chat'}</span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onDelete(session._id); }}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded text-zinc-500 hover:text-red-400 transition-all"
-                        aria-label="Delete chat"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              {starredSessions.length > 0 && (
+                <>
+                  <p className="px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Starred</p>
+                  {renderSessionList(starredSessions)}
+                </>
+              )}
+              {recentSessions.length > 0 && (
+                <>
+                  <p className="px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Recent</p>
+                  {renderSessionList(recentSessions)}
+                </>
+              )}
             </>
           )}
         </div>
@@ -140,6 +328,14 @@ export default function Sidebar({
                 <HelpCircle size={14} className="text-zinc-500" />
                 Help
               </button>
+              <a
+                href="/plans"
+                onMouseDown={() => window.location.assign('/plans')}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+              >
+                <Settings size={14} className="text-zinc-500" />
+                Manage plan
+              </a>
               <div className="h-px bg-zinc-700" />
               <button
                 onClick={onLogout}
@@ -152,6 +348,32 @@ export default function Sidebar({
           )}
         </div>
       </aside>
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-2xl">
+            <h2 className="text-sm font-semibold text-white">Delete chat?</h2>
+            <p className="mt-2 text-sm text-zinc-400">
+              This permanently removes "{deleteTarget.title || 'New Chat'}".
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="rounded-lg px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={busySessionId === deleteTarget._id || isSessionStreaming(deleteTarget._id)}
+                onClick={confirmDelete}
+                className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -3,7 +3,7 @@
  */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { authApi, profileApi } from '../services/endpoints.js';
+import { authApi, paymentApi, profileApi } from '../services/endpoints.js';
 
 export const useAuthStore = create(
   persist(
@@ -70,6 +70,13 @@ export const useAuthStore = create(
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, profile: null });
       },
 
+      setUsage: (usage) => {
+        if (!usage) return;
+        set((state) => ({
+          user: state.user ? { ...state.user, plan: usage.plan, usage } : state.user,
+        }));
+      },
+
       fetchMe: async () => {
         try {
           const { user } = await authApi.me();
@@ -92,6 +99,36 @@ export const useAuthStore = create(
         const { profile } = await profileApi.update(data);
         set({ profile });
         return profile;
+      },
+
+      fetchUsage: async () => {
+        const { usage } = await profileApi.usage();
+        get().setUsage(usage);
+        return usage;
+      },
+
+      updatePlan: async (plan) => {
+        if (plan === 'free') {
+          const { user, usage } = await profileApi.updatePlan(plan);
+          set({ user: { ...user, usage } });
+          return { user, usage };
+        }
+
+        const result = await paymentApi.checkout(plan);
+        if (result.url) {
+          window.location.assign(result.url);
+          return result;
+        }
+
+        const { user, usage } = result;
+        set({ user: { ...user, usage } });
+        return result;
+      },
+
+      confirmPayment: async (sessionId) => {
+        const { user, usage } = await paymentApi.confirm(sessionId);
+        set({ user: { ...user, usage } });
+        return { user, usage };
       },
 
       // ── Onboarding modal controls ────────────────────────────

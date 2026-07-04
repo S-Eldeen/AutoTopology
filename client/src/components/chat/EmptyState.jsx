@@ -15,7 +15,7 @@ import { useChatStore } from '../../stores/chatStore.js';
  */
 export default function EmptyState({ onNewChat }) {
   const [text, setText] = useState('');
-  const { sendMessage, createSession, activeSessionId, topology } = useChatStore();
+  const { sendMessage, createSession, activeSessionId, topology, error } = useChatStore();
 
   const handleSend = async () => {
     if (!text.trim()) return;
@@ -55,6 +55,11 @@ export default function EmptyState({ onNewChat }) {
 
         {/* ── Small pill input (ChatGPT style, no hint text) ── */}
         <div className="relative">
+          {error && (
+            <div className="mb-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {error}
+            </div>
+          )}
           <div className="flex items-end gap-2 rounded-[20px] border border-white/[0.08] bg-[#131A24] px-5 py-3 focus-within:border-brand-500/50 focus-within:ring-1 focus-within:ring-brand-500/20 transition-all shadow-lg shadow-black/20">
             <textarea
               data-chat-input

@@ -34,12 +34,27 @@ export const profileSchemas = {
     requireTemplateImageMap: z.boolean().optional(),
     imageMap: z.record(z.string(), z.string()).optional(),
   }),
+  updatePlan: z.object({
+    plan: z.enum(['free', 'plus', 'pro']),
+  }),
+};
+
+export const paymentSchemas = {
+  checkout: z.object({
+    plan: z.enum(['plus', 'pro']),
+  }),
+  confirm: z.object({
+    sessionId: z.string().min(1),
+  }),
 };
 
 export const sessionSchemas = {
   create: z.object({}),
   updateTitle: z.object({
-    title: z.string().min(1).max(200),
+    title: z.string().trim().min(1).max(200),
+  }),
+  updateStarred: z.object({
+    starred: z.boolean(),
   }),
 };
 

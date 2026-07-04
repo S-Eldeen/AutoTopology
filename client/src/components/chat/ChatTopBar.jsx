@@ -1,5 +1,6 @@
 import { PanelLeft, Plus } from 'lucide-react';
 import { useChatStore } from '../../stores/chatStore.js';
+import { useAuthStore } from '../../stores/authStore.js';
 
 /**
  * ChatTopBar — fixed top bar (zinc + emerald status).
@@ -15,6 +16,8 @@ export default function ChatTopBar({ sidebarOpen, onToggleSidebar, activeSession
   const activeTool = useChatStore((s) => s.activeTool);
   const streamingText = useChatStore((s) => s.streamingText);
   const createSession = useChatStore((s) => s.createSession);
+  const user = useAuthStore((s) => s.user);
+  const usage = user?.usage;
 
   // ── Determine status ────────────────────────────────────
   let status = 'Ready';
@@ -62,10 +65,18 @@ export default function ChatTopBar({ sidebarOpen, onToggleSidebar, activeSession
         </span>
       </div>
 
-      {/* ── Right: status indicator ─────────────────────── */}
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800">
-        <span className={`w-2 h-2 rounded-full ${statusColor}`} />
-        <span className="text-xs font-medium text-zinc-400">{status}</span>
+      {/* ── Right: status + account ─────────────────────── */}
+      <div className="flex items-center gap-2">
+        {usage && (
+          <div className="hidden items-center rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 sm:flex">
+            <span className="text-zinc-200">{usage.used} / {usage.limit}</span>
+            <span className="ml-1">designs used today</span>
+          </div>
+        )}
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800">
+          <span className={`w-2 h-2 rounded-full ${statusColor}`} />
+          <span className="text-xs font-medium text-zinc-400">{status}</span>
+        </div>
       </div>
     </header>
   );
