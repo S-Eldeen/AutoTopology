@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowUp } from 'lucide-react';
 import ActionChipsBar from './ActionChipsBar.jsx';
 import { useChatStore } from '../../stores/chatStore.js';
+import { useAutoResizeTextarea } from '../../hooks/useAutoResizeTextarea.js';
 
 /**
  * EmptyState — Claude-style new chat screen.
@@ -15,6 +16,7 @@ import { useChatStore } from '../../stores/chatStore.js';
  */
 export default function EmptyState({ onNewChat }) {
   const [text, setText] = useState('');
+  const inputRef = useAutoResizeTextarea(text);
   const { sendMessage, createSession, activeSessionId, topology, error } = useChatStore();
 
   const handleSend = async () => {
@@ -62,14 +64,15 @@ export default function EmptyState({ onNewChat }) {
           )}
           <div className="flex items-end gap-2 rounded-[20px] border border-white/[0.08] bg-[#131A24] px-5 py-3 focus-within:border-brand-500/50 focus-within:ring-1 focus-within:ring-brand-500/20 transition-all shadow-lg shadow-black/20">
             <textarea
+              ref={inputRef}
               data-chat-input
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Describe the network you want to build..."
               rows={1}
-              className="flex-1 bg-transparent text-[15px] text-white placeholder-zinc-500 resize-none focus:outline-none leading-relaxed max-h-32"
-              style={{ minHeight: '24px' }}
+              className="flex-1 bg-transparent text-[15px] text-white placeholder-zinc-500 resize-none focus:outline-none leading-relaxed transition-[height] duration-150 ease-out overscroll-contain"
+              style={{ minHeight: '24px', height: '24px', overflowY: 'hidden' }}
             />
             <button
               onClick={handleSend}
