@@ -18,10 +18,12 @@ export function useAutoResizeTextarea(value) {
 
     const resize = () => {
       const maxHeight = maxPromptHeight();
-      textarea.style.height = `${MIN_HEIGHT}px`;
-      const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+      textarea.style.boxSizing = 'border-box';
+      textarea.style.height = 'auto';
+      const contentHeight = textarea.value ? textarea.scrollHeight : MIN_HEIGHT;
+      const nextHeight = Math.min(contentHeight, maxHeight);
       textarea.style.height = `${Math.max(MIN_HEIGHT, nextHeight)}px`;
-      textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
+      textarea.style.overflowY = contentHeight > maxHeight ? 'auto' : 'hidden';
     };
 
     resize();
