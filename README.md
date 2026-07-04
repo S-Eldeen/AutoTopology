@@ -166,7 +166,7 @@ structuranet_app/
 ```bash
 cd ai-engine
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
