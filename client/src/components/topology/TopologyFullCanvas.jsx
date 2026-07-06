@@ -368,12 +368,7 @@ export default function TopologyFullCanvas({ topology, onClose }) {
           <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 flex items-center justify-center">
             <Network size={18} />
           </div>
-          <div>
-            <h2 className="font-semibold leading-none" style={{ color: theme.text }}>{name}</h2>
-            <p className="text-xs mt-1" style={{ color: theme.textMuted }}>
-              {nodeCount} devices · {linkCount} links · Drag nodes to rearrange · Click for details
-            </p>
-          </div>
+          <h2 className="font-semibold leading-none" style={{ color: theme.text }}>{name}</h2>
         </div>
         <div className="flex items-center gap-2">
           {/* Download as PDF */}
@@ -410,18 +405,17 @@ export default function TopologyFullCanvas({ topology, onClose }) {
           >
             {lightMode ? <Moon size={16} /> : <Sun size={16} />}
           </button>
-          <div className="hidden sm:flex items-center gap-1.5 text-[11px] rounded-md px-2.5 py-1.5 ring-1 ring-inset"
-            style={{ color: theme.textMuted, background: theme.kbdBg, borderColor: theme.kbdBorder }}>
-            <kbd className="font-mono" style={{ color: theme.text }}>Scroll</kbd> zoom ·
-            <kbd className="font-mono ml-1" style={{ color: theme.text }}>Drag bg</kbd> pan ·
-            <kbd className="font-mono ml-1" style={{ color: theme.text }}>Esc</kbd> close
-          </div>
           <button
             onClick={onClose}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-white text-zinc-900 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 active:scale-[0.98] transition-all shadow-sm"
+            className="inline-flex items-center justify-center w-9 h-9 rounded-lg border transition-colors"
+            style={{
+              background: lightMode ? '#fff' : 'rgba(39,39,42,0.6)',
+              borderColor: lightMode ? '#cbd5e1' : '#3f3f46',
+              color: lightMode ? '#475569' : '#a1a1aa',
+            }}
+            aria-label="Close"
           >
             <X size={16} />
-            Close
           </button>
         </div>
       </header>
@@ -523,18 +517,6 @@ export default function TopologyFullCanvas({ topology, onClose }) {
             })}
           </g>
         </svg>
-
-        {/* Stats */}
-        <div className="absolute top-4 right-4 rounded-xl border shadow-xl backdrop-blur-xl px-4 py-2.5"
-          style={{ background: theme.panelBg, borderColor: theme.panelBorder }}>
-          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: theme.textSubtle }}>Topology</div>
-          <div className="text-sm font-semibold" style={{ color: theme.text }}>
-            {nodeCount} <span style={{ color: theme.textMuted, fontWeight: 'normal' }}>nodes</span>
-            <span className="mx-1.5" style={{ color: theme.textSubtle }}>·</span>
-            {linkCount} <span style={{ color: theme.textMuted, fontWeight: 'normal' }}>links</span>
-          </div>
-          <div className="text-[10px] mt-1" style={{ color: theme.textSubtle }}>Drag any node to rearrange</div>
-        </div>
 
         {/* Node detail panel */}
         {selected && (
