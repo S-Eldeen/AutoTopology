@@ -8,15 +8,9 @@ import { Network, ShieldCheck, Server, BookOpen, Download, Pencil } from 'lucide
  *   - No topology:  Design, Secure, Modernize, Learn
  *   - Topology exists: Export, Secure, Modify, Learn
  *
- * Behavior:
- *   - Only one chip can be expanded at a time
- *   - Click a chip → expands inline below (prompt examples appear)
- *   - Click again → collapses
- *   - Click another chip → first collapses, second expands
- *   - Click a prompt → calls onPromptSelect(prompt) which fills the input
+ * Dark theme: glass-style chips matching the chat page design.
  */
 
-// ── Chip definitions ────────────────────────────────────────
 const DEFAULT_CHIPS = [
   {
     id: 'design',
@@ -64,7 +58,6 @@ const DEFAULT_CHIPS = [
   },
 ];
 
-// ── Swaps when topology exists ───────────────────────────────
 const TOPOLOGY_CHIPS = [
   {
     id: 'export',
@@ -102,12 +95,12 @@ export default function ActionChipsBar({ hasTopology, onPromptSelect }) {
 
   const handlePromptClick = (prompt) => {
     onPromptSelect(prompt);
-    setExpandedId(null); // collapse after selecting
+    setExpandedId(null);
   };
 
   return (
     <div>
-      {/* ── Chip row ────────────────────────────────────── */}
+      {/* Chip row */}
       <div className="flex items-center justify-center gap-2 flex-wrap">
         {chips.map((chip) => {
           const Icon = chip.icon;
@@ -116,11 +109,24 @@ export default function ActionChipsBar({ hasTopology, onPromptSelect }) {
             <button
               key={chip.id}
               onClick={() => handleToggle(chip.id)}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all shadow-sm ${
+              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all"
+              style={
                 isExpanded
-                  ? 'bg-emerald-600 text-white border border-emerald-500'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:border-slate-300'
-              }`}
+                  ? { background: 'linear-gradient(180deg, #10b981, #0d9668)', color: '#fff', border: '1px solid rgba(16,185,129,0.4)' }
+                  : { background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.08)' }
+              }
+              onMouseEnter={(e) => {
+                if (!isExpanded) {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                  e.currentTarget.style.color = '#fff';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isExpanded) {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+                }
+              }}
             >
               <Icon size={14} />
               <span>{chip.label}</span>
@@ -129,19 +135,25 @@ export default function ActionChipsBar({ hasTopology, onPromptSelect }) {
         })}
       </div>
 
-      {/* ── Expanded prompts (inline below chips) ───────── */}
+      {/* Expanded prompts */}
       {expandedId && (
         <div className="mt-4 max-w-xl mx-auto animate-fade-in-up">
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+          >
             {chips
               .find((c) => c.id === expandedId)
               .prompts.map((prompt, i) => (
                 <button
                   key={i}
                   onClick={() => handlePromptClick(prompt)}
-                  className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:text-slate-900 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 transition-colors flex items-start gap-3 group"
+                  className="w-full text-left px-4 py-3 text-sm transition-colors flex items-start gap-3 group"
+                  style={{ borderBottom: i < chips.find((c) => c.id === expandedId).prompts.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', color: 'rgba(255,255,255,0.6)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#fff'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}
                 >
-                  <span className="text-slate-400 group-hover:text-emerald-600 transition-colors mt-0.5">
+                  <span style={{ color: 'rgba(255,255,255,0.3)' }} className="mt-0.5">
                     {String(i + 1).padStart(2, '0')}
                   </span>
                   <span className="flex-1">{prompt}</span>
