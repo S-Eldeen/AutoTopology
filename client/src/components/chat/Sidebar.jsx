@@ -1,8 +1,9 @@
 import {
   X, Plus, MessageSquare, Trash2, LogOut, User, Settings, HelpCircle,
-  ChevronDown, MoreVertical, Star, Pencil, Share2,
+  ChevronDown, MoreVertical, Star, Pencil, Share2, ShieldCheck,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore.js';
 
 /**
@@ -335,10 +336,22 @@ export default function Sidebar({
                 <Settings size={14} className="text-zinc-500" />
                 GNS3 Image Settings
               </button>
-              <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors">
+              <a
+                href="/#how-it-works"
+                onClick={() => setProfileOpen(false)}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+              >
                 <HelpCircle size={14} className="text-zinc-500" />
                 Help
-              </button>
+              </a>
+              <Link
+                to="/privacy"
+                onClick={() => setProfileOpen(false)}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+              >
+                <ShieldCheck size={14} className="text-zinc-500" />
+                Privacy Policy
+              </Link>
               <a
                 href="/plans"
                 onMouseDown={() => window.location.assign('/plans')}

@@ -18,6 +18,7 @@ const COLUMNS = [
     title: 'Company',
     links: [
       { label: 'Our vision', href: '#' },
+      { label: 'Privacy policy', href: '/privacy' },
       { label: 'Get started', href: '/register' },
       { label: 'Sign in', href: '/login' },
     ],

@@ -35,7 +35,11 @@ const client = new OpenAI({
   baseURL: config.llm.baseUrl,
 });
 
-const DEFAULT_SECURITY_PROFILE = 'none';
+const SECURITY_PROFILE_OPTIONS = {
+  none: 'No extra security hardening beyond the requested topology and baseline connectivity.',
+  basic: 'Adds common small-lab protections such as basic ACL intent, NAT/firewall-aware placement when requested, and safer management assumptions.',
+  enterprise: 'Adds enterprise-grade assumptions such as segmentation, firewall/DMZ intent, stronger policy boundaries, logging/monitoring readiness, and compliance-oriented design choices.',
+};
 
 // ═══════════════════════════════════════════════════════════
 // INTENT CLASSIFIER (heuristic, no LLM call)
@@ -99,15 +103,33 @@ function isExistingTopologyRequest(userMessage) {
     || /\b(design|topology|diagram)\b.*\b(please|now|again|current|existing)\b/i.test(msg);
 }
 
-function inferSecurityProfile(userMessage) {
+function parseSecurityProfileSelection(userMessage) {
+  const msg = (userMessage || '').toLowerCase().trim();
+  if (/^(none|no security|without security|no hardening|default)$/i.test(msg)) return 'none';
+  if (/^(basic|standard|simple security)$/i.test(msg)) return 'basic';
+  if (/^(enterprise|advanced|enterprise security|zero trust)$/i.test(msg)) return 'enterprise';
+  const explicit = msg.match(/\bsecurity profile\s*(?:to|as|=|:)?\s*(none|basic|enterprise)\b/i);
+  if (explicit) return explicit[1].toLowerCase();
+  const change = msg.match(/\b(?:use|set|change|switch)\b.*\b(none|basic|enterprise)\b/i);
+  return change ? change[1].toLowerCase() : null;
+}
+
+function isSecurityProfileChangeRequest(userMessage) {
   const msg = (userMessage || '').toLowerCase();
-  if (/\b(enterprise|zero trust|dmz|siem|ids|ips|compliance|segmentation|soc)\b/.test(msg)) {
-    return 'enterprise';
-  }
-  if (/\b(security|secure|firewall|acl|vpn|nat|hardening|protected)\b/.test(msg)) {
-    return 'basic';
-  }
-  return DEFAULT_SECURITY_PROFILE;
+  return /\b(security profile|profile)\b/.test(msg)
+    && /\b(none|basic|enterprise)\b/.test(msg);
+}
+
+function securityProfilePrompt() {
+  return [
+    'Before I generate or export this project, choose a Security Profile:',
+    '',
+    `- None: ${SECURITY_PROFILE_OPTIONS.none}`,
+    `- Basic: ${SECURITY_PROFILE_OPTIONS.basic}`,
+    `- Enterprise: ${SECURITY_PROFILE_OPTIONS.enterprise}`,
+    '',
+    'Reply with one option: None, Basic, or Enterprise.',
+  ].join('\n');
 }
 
 function getDeterministicAction(userMessage, hasTopology) {
@@ -134,7 +156,7 @@ function getDeterministicAction(userMessage, hasTopology) {
     return {
       type: 'tool',
       tool: 'edit_topology',
-      args: { feedback: userMessage, securityProfile: inferSecurityProfile(msg) },
+      args: { feedback: userMessage },
     };
   }
 
@@ -142,7 +164,7 @@ function getDeterministicAction(userMessage, hasTopology) {
     return {
       type: 'tool',
       tool: 'generate_topology',
-      args: { request: userMessage, securityProfile: inferSecurityProfile(msg) },
+      args: { request: userMessage },
     };
   }
 
@@ -154,7 +176,7 @@ function getDeterministicAction(userMessage, hasTopology) {
 
   if (/\b(export|download|deploy|deployment kit|gns3|configs?|configuration files?)\b/.test(msg)) {
     return hasTopology
-      ? { type: 'tool', tool: 'export_project', args: { securityProfile: inferSecurityProfile(msg) } }
+      ? { type: 'tool', tool: 'export_project', args: {} }
       : { type: 'message', content: 'No topology exists to export yet. Generate a topology first, then ask me to export it.' };
   }
 
@@ -195,7 +217,7 @@ const TOOL_DEFINITIONS = [
         type: 'object',
         properties: {
           request: { type: 'string', description: 'The user\'s natural-language request describing the network to build.' },
-          securityProfile: { type: 'string', enum: ['none', 'basic', 'enterprise'], description: 'Security profile. Default: none.' },
+          securityProfile: { type: 'string', enum: ['none', 'basic', 'enterprise'], description: 'Security profile selected for this session.' },
         },
         required: ['request'],
       },
@@ -210,7 +232,7 @@ const TOOL_DEFINITIONS = [
         type: 'object',
         properties: {
           feedback: { type: 'string', description: 'The user\'s requested change in natural language.' },
-          securityProfile: { type: 'string', enum: ['none', 'basic', 'enterprise'], description: 'Security profile for regenerated configs.' },
+          securityProfile: { type: 'string', enum: ['none', 'basic', 'enterprise'], description: 'Security profile selected for this session.' },
         },
         required: ['feedback'],
       },
@@ -224,7 +246,7 @@ const TOOL_DEFINITIONS = [
       parameters: {
         type: 'object',
         properties: {
-          securityProfile: { type: 'string', enum: ['none', 'basic', 'enterprise'], description: 'Security profile to apply.' },
+          securityProfile: { type: 'string', enum: ['none', 'basic', 'enterprise'], description: 'Security profile selected for this session.' },
         },
         required: [],
       },
@@ -399,6 +421,12 @@ async function buildCurrentTopologyContext(session) {
 async function buildLLMMessages(session, userMessage, isFirstMessage, intent) {
   const hasTopology = !!session.currentTopologyId;
   const messages = [{ role: 'system', content: buildSystemPrompt(intent, isFirstMessage, hasTopology) }];
+  if (session.securityProfile) {
+    messages.push({
+      role: 'system',
+      content: `SESSION SECURITY PROFILE: ${profileLabel(session.securityProfile)}. Use this same profile for topology generation, configuration generation, and GNS3 export unless the user explicitly changes it.`,
+    });
+  }
   const topologyContext = await buildCurrentTopologyContext(session);
   if (topologyContext) {
     messages.push({ role: 'system', content: topologyContext });
@@ -596,6 +624,35 @@ async function executeDirectTool(sessionId, userId, toolName, args) {
   }
 }
 
+async function askForSecurityProfile(sessionId, pendingAction) {
+  await Session.updateOne(
+    { _id: sessionId },
+    {
+      $set: {
+        pendingSecurityProfileAction: pendingAction,
+        lastActivityAt: new Date(),
+      },
+    }
+  );
+  await sendDirectMessage(sessionId, securityProfilePrompt());
+}
+
+async function setSessionSecurityProfile(sessionId, profile) {
+  await Session.updateOne(
+    { _id: sessionId },
+    {
+      $set: {
+        securityProfile: profile,
+        lastActivityAt: new Date(),
+      },
+    }
+  );
+}
+
+function profileLabel(profile) {
+  return profile ? profile[0].toUpperCase() + profile.slice(1) : 'Unknown';
+}
+
 function friendlyToolError(err) {
   const raw = [
     err?.message,
@@ -627,6 +684,12 @@ async function executeTool(sessionId, userId, toolName, args) {
   let summary = '';
 
   try {
+    const sessionProfileDoc = await Session.findById(sessionId).select('securityProfile').lean();
+    const selectedSecurityProfile = sessionProfileDoc?.securityProfile;
+    if (!selectedSecurityProfile) {
+      throw new EngineError('Security Profile is required before generation or export. Choose None, Basic, or Enterprise first.');
+    }
+
     const onEvent = (event) => forwardPythonEvent(sessionId, toolName, event);
     const outputDir = path.resolve(process.cwd(), 'output', sessionId);
     await fs.mkdir(outputDir, { recursive: true });
@@ -666,7 +729,7 @@ async function executeTool(sessionId, userId, toolName, args) {
     if (toolName === 'generate_topology') {
       result = await aiEngine.generate({
         request: args.request,
-        securityProfile: args.securityProfile || DEFAULT_SECURITY_PROFILE,
+        securityProfile: selectedSecurityProfile,
         outputDir,
         profile,
       }, onEvent);
@@ -711,7 +774,7 @@ async function executeTool(sessionId, userId, toolName, args) {
         feedback: args.feedback,
         topologyPath: topology.phase1File || path.resolve(outputDir, '_topology.json'),
         originalRequest: session.originalRequest || topology.request,
-        securityProfile: args.securityProfile || DEFAULT_SECURITY_PROFILE,
+        securityProfile: selectedSecurityProfile,
         outputDir,
         profile,
       }, onEvent);
@@ -749,14 +812,14 @@ async function executeTool(sessionId, userId, toolName, args) {
       const exportJob = await ExportJob.create({
         sessionId, userId,
         topologyId: topology._id,
-        securityProfile: args.securityProfile || DEFAULT_SECURITY_PROFILE,
+        securityProfile: selectedSecurityProfile,
         status: 'running',
       });
       await Session.findByIdAndUpdate(sessionId, { currentExportId: exportJob._id });
 
       result = await aiEngine.exportProject({
         topologyPath: topology.phase1File || path.resolve(outputDir, '_topology.json'),
-        securityProfile: args.securityProfile || DEFAULT_SECURITY_PROFILE,
+        securityProfile: selectedSecurityProfile,
         outputDir,
         profile,
       }, onEvent);
@@ -782,7 +845,7 @@ async function executeTool(sessionId, userId, toolName, args) {
           { name: 'configs.zip', type: 'configs', size: null },
           { name: 'manifest.txt', type: 'manifest', size: null },
         ].filter(f => f.name),
-        securityProfile: args.securityProfile || DEFAULT_SECURITY_PROFILE,
+        securityProfile: selectedSecurityProfile,
         validation: result.validation,
         deviceConfigs: Object.keys(result.config_texts || {}),
       });
@@ -817,6 +880,48 @@ export async function dispatch(sessionId, userId, userMessage) {
     createdAt: new Date(),
   });
 
+  const selectedProfile = parseSecurityProfileSelection(userMessage);
+  if (session.pendingSecurityProfileAction) {
+    if (!selectedProfile) {
+      await sendDirectMessage(sessionId, securityProfilePrompt());
+      return { ok: true, rounds: 0 };
+    }
+
+    await Session.updateOne(
+      { _id: sessionId },
+      {
+        $set: {
+          securityProfile: selectedProfile,
+          pendingSecurityProfileAction: null,
+          lastActivityAt: new Date(),
+        },
+      }
+    );
+
+    const continueMessage = `Security Profile set to ${profileLabel(selectedProfile)}. Continuing with the saved request.`;
+    await appendAssistantMessage(sessionId, {
+      role: 'assistant',
+      content: continueMessage,
+      createdAt: new Date(),
+    });
+    sseService.broadcast(sessionId, 'agent_message', { message: continueMessage });
+
+    const pending = session.pendingSecurityProfileAction;
+    if (pending?.type === 'tool') {
+      return executeDirectTool(sessionId, userId, pending.tool, pending.args || {});
+    }
+    return { ok: true, rounds: 0 };
+  }
+
+  if (isSecurityProfileChangeRequest(userMessage) && selectedProfile) {
+    await setSessionSecurityProfile(sessionId, selectedProfile);
+    await sendDirectMessage(
+      sessionId,
+      `Security Profile changed to ${profileLabel(selectedProfile)}. I will use it for topology generation, configuration generation, and GNS3 export in this session.`
+    );
+    return { ok: true, rounds: 0 };
+  }
+
   const isFirstUser = !session.messages?.some(m => m.role === 'user');
   if (isFirstUser) {
     await maybeAutoTitle(sessionId, userMessage);
@@ -842,6 +947,10 @@ export async function dispatch(sessionId, userId, userMessage) {
     }
   }
   if (deterministicAction?.type === 'tool') {
+    if (!session.securityProfile) {
+      await askForSecurityProfile(sessionId, deterministicAction);
+      return { ok: true, rounds: 0 };
+    }
     logger.info(`[orchestrator] Direct tool ${deterministicAction.tool} for session ${sessionId}`);
     return executeDirectTool(sessionId, userId, deterministicAction.tool, deterministicAction.args);
   }
@@ -965,6 +1074,18 @@ export async function dispatch(sessionId, userId, userMessage) {
     }
 
     // ── No tool calls → done ───────────────────────────────
+    if (toolCalls.length > 0 && !freshSession.securityProfile) {
+      const firstToolCall = toolCalls[0];
+      let pendingArgs = {};
+      try { pendingArgs = JSON.parse(firstToolCall.function.arguments || '{}'); } catch { pendingArgs = {}; }
+      await askForSecurityProfile(sessionId, {
+        type: 'tool',
+        tool: firstToolCall.function.name,
+        args: pendingArgs,
+      });
+      return { ok: true, rounds: round };
+    }
+
     if (toolCalls.length === 0) {
       logger.info(`[orchestrator] Round ${round}: no tool calls, exiting loop`);
       break;

@@ -52,6 +52,17 @@ const sessionSchema = new mongoose.Schema({
     ref: 'Topology',
     default: null,
   },
+  // Explicit per-project security profile. Null means the user has not
+  // chosen yet, so generation/export must ask before proceeding.
+  securityProfile: {
+    type: String,
+    enum: [null, 'none', 'basic', 'enterprise'],
+    default: null,
+  },
+  pendingSecurityProfileAction: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
   // Tracks active export job, if any
   currentExportId: {
     type: mongoose.Schema.Types.ObjectId,
