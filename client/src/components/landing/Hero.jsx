@@ -13,7 +13,8 @@ export default function Hero() {
       {/* Background — grid + radial glow */}
       <div className="absolute inset-0 bg-grid-dark opacity-60" aria-hidden />
       <div className="absolute inset-0 bg-radial-glow-green" aria-hidden />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-brand-500/10 to-transparent rounded-full blur-3xl" aria-hidden />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_61%_44%,rgba(7,155,107,0.16),transparent_32%)]" aria-hidden />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[840px] h-[520px] bg-gradient-to-b from-brand-500/14 to-transparent rounded-full blur-3xl" aria-hidden />
       {/* Network nodes + lines pattern — green dots connected by thin lines */}
       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" style={{ opacity: 0.06 }} aria-hidden>
         <line x1="80" y1="60" x2="220" y2="120" stroke="#10B981" strokeWidth="1" />

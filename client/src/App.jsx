@@ -25,6 +25,7 @@ export default function App() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const fetchMe = useAuthStore((s) => s.fetchMe);
   const fetchProfile = useAuthStore((s) => s.fetchProfile);
+  const fetchUsage = useAuthStore((s) => s.fetchUsage);
   const loadSessions = useChatStore((s) => s.loadSessions);
   const profile = useAuthStore((s) => s.profile);
   const showProfileModal = useAuthStore((s) => s.showProfileModal);
@@ -37,6 +38,7 @@ export default function App() {
       });
     } else if (isAuthenticated) {
       fetchProfile();
+      fetchUsage().catch(() => {});
       loadSessions();
     }
   }, []); // eslint-disable-line

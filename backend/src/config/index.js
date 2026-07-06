@@ -46,6 +46,14 @@ export const config = {
     maxTokens: parseInt(process.env.AI_MAX_TOKENS || '16384', 10),
   },
 
+  speech: {
+    apiKey: process.env.SPEECH_API_KEY
+      || (process.env.SPEECH_BASE_URL?.includes('openrouter.ai') ? process.env.ROUTER_API_KEY : process.env.OPENAI_API_KEY)
+      || process.env.ROUTER_API_KEY,
+    baseUrl: process.env.SPEECH_BASE_URL || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+    model: process.env.SPEECH_MODEL || 'whisper-1',
+  },
+
   aiEngine: {
     pythonBin: process.env.PYTHON_BIN || 'python',
     wrapperPath: process.env.WRAPER_PATH

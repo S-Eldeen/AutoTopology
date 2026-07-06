@@ -306,7 +306,14 @@ export const useChatStore = create((set, get) => ({
   sendMessage: async (content) => {
     const sessionId = get().activeSessionId;
     if (!sessionId || !content.trim()) return;
-    const usage = useAuthStore.getState().user?.usage;
+    let usage = useAuthStore.getState().user?.usage;
+    if (isDesignPrompt(content) && usage && usage.remaining <= 0) {
+      try {
+        usage = await useAuthStore.getState().fetchUsage();
+      } catch {
+        // Fall through to the existing cached usage; the API will still enforce the limit.
+      }
+    }
     if (isDesignPrompt(content) && usage && usage.remaining <= 0) {
       set({ error: resetMessage(usage.resetAt) });
       return;

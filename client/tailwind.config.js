@@ -8,48 +8,48 @@ export default {
       colors: {
         // Primary brand — Emerald green
         brand: {
-  50:  '#e6f4ef',
-  100: '#c0e4d6',
-  200: '#88ceac',
-  300: '#4fb083',
-  400: '#1f936d',
-  500: '#00875e',  // primary
-  600: '#006e4d',
-  700: '#00563b',
-  800: '#003e2a',
-  900: '#002a1c',
-  950: '#001a11',
+  50:  '#e4fff5',
+  100: '#b9f8dd',
+  200: '#7be9bc',
+  300: '#36d69b',
+  400: '#12bd83',
+  500: '#079b6b',  // primary
+  600: '#047a55',
+  700: '#035f44',
+  800: '#024836',
+  900: '#013326',
+  950: '#001f18',
 },
         // Navy — deep slate (used by landing components)
         navy: {
-          50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1',
-          400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155',
-          800: '#1e293b', 900: '#0f172a', 950: '#020617',
+          50: '#f7faf9', 100: '#edf5f1', 200: '#d6e5df', 300: '#b6cbc4',
+          400: '#8ba49c', 500: '#617c74', 600: '#455e57', 700: '#2b403a',
+          800: '#132820', 900: '#071612', 950: '#020706',
         },
         // Ink — alias for navy (used by topology preview)
         ink: {
-          50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1',
-          400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155',
-          800: '#1e293b', 900: '#0f172a', 950: '#020617',
+          50: '#f7faf9', 100: '#edf5f1', 200: '#d6e5df', 300: '#b6cbc4',
+          400: '#8ba49c', 500: '#617c74', 600: '#455e57', 700: '#2b403a',
+          800: '#132820', 900: '#071612', 950: '#020706',
         },
         // Accent — emerald alias (used by topology preview)
         accent: {
-  50:  '#e6f4ef',
-  100: '#c0e4d6',
-  200: '#88ceac',
-  300: '#4fb083',
-  400: '#1f936d',
-  500: '#00875e',
-  600: '#006e4d',
-  700: '#00563b',
-  800: '#003e2a',
-  900: '#002a1c',
-  950: '#001a11',
+  50:  '#e4fff5',
+  100: '#b9f8dd',
+  200: '#7be9bc',
+  300: '#36d69b',
+  400: '#12bd83',
+  500: '#079b6b',
+  600: '#047a55',
+  700: '#035f44',
+  800: '#024836',
+  900: '#013326',
+  950: '#001f18',
 },
         // Cream — warm off-white (used by LandingPage root)
         cream: {
-          50: '#0f172a',  // mapped to dark navy (landing is dark mode)
-          100: '#1e293b',
+          50: '#020706',  // mapped to dark product shell
+          100: '#071612',
         },
         // Semantic colors (used by some components)
         danger: {
@@ -63,16 +63,16 @@ export default {
           800: '#92400e', 900: '#78350f',
         },
         success: {
-  50:  '#e6f4ef',
-  100: '#c0e4d6',
-  200: '#88ceac',
-  300: '#4fb083',
-  400: '#1f936d',
-  500: '#00875e',
-  600: '#006e4d',
-  700: '#00563b',
-  800: '#003e2a',
-  900: '#002a1c',
+  50:  '#e4fff5',
+  100: '#b9f8dd',
+  200: '#7be9bc',
+  300: '#36d69b',
+  400: '#12bd83',
+  500: '#079b6b',
+  600: '#047a55',
+  700: '#035f44',
+  800: '#024836',
+  900: '#013326',
 },
       },
       fontFamily: {
@@ -82,10 +82,10 @@ export default {
       boxShadow: {
         'soft': '0 2px 8px rgba(0,0,0,0.12)',
         'soft-lg': '0 8px 24px rgba(0,0,0,0.18)',
-        'glow-brand': '0 0 20px rgba(16,185,129,0.25)',
+        'glow-brand': '0 0 24px rgba(7,155,107,0.32)',
       },
       backgroundImage: {
-        'grid-dark': "url(\"data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h40v40H0z' fill='none' stroke='%2334d399' stroke-opacity='0.05' stroke-width='1'/%3E%3C/svg%3E\")",
+        'grid-dark': "url(\"data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h40v40H0z' fill='none' stroke='%2312bd83' stroke-opacity='0.045' stroke-width='1'/%3E%3C/svg%3E\")",
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',

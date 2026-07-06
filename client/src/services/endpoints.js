@@ -39,6 +39,13 @@ export const sessionApi = {
   sendMessage: (id, content) => api.post(`/sessions/${id}/messages`, { content }).then(r => r.data),
 };
 
+export const voiceApi = {
+  transcribe: (blob) => api.post('/voice/transcribe', blob, {
+    headers: { 'Content-Type': blob.type || 'audio/webm' },
+    timeout: 60_000,
+  }).then(r => r.data),
+};
+
 export const topologyApi = {
   get: (id) => api.get(`/topology/${id}`).then(r => r.data),
 };

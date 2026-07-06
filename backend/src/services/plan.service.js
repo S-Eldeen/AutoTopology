@@ -14,19 +14,32 @@ export function normalizePlan(plan) {
   return Object.prototype.hasOwnProperty.call(PLAN_LIMITS, plan) ? plan : 'free';
 }
 
+function startOfUtcDay(date = new Date()) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function addUtcDays(date, days) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
 export function resetUsageIfNeeded(user, now = new Date()) {
+  const todayStartedAt = startOfUtcDay(now);
+
   if (!user.designUsage) {
-    user.designUsage = { used: 0, windowStartedAt: now };
+    user.designUsage = { used: 0, windowStartedAt: todayStartedAt };
     return true;
   }
 
   const started = user.designUsage.windowStartedAt
     ? new Date(user.designUsage.windowStartedAt)
-    : now;
-  const resetAt = new Date(started.getTime() + 24 * 60 * 60 * 1000);
-  if (now >= resetAt) {
+    : todayStartedAt;
+  const startedDay = startOfUtcDay(started);
+
+  if (startedDay.getTime() !== todayStartedAt.getTime()) {
     user.designUsage.used = 0;
-    user.designUsage.windowStartedAt = now;
+    user.designUsage.windowStartedAt = todayStartedAt;
     return true;
   }
   return false;
@@ -34,12 +47,15 @@ export function resetUsageIfNeeded(user, now = new Date()) {
 
 export function usagePayload(user, now = new Date()) {
   const plan = normalizePlan(user.plan);
-  const started = user.designUsage?.windowStartedAt
+  const todayStartedAt = startOfUtcDay(now);
+  const storedStarted = user.designUsage?.windowStartedAt
     ? new Date(user.designUsage.windowStartedAt)
     : now;
-  const resetAt = new Date(started.getTime() + 24 * 60 * 60 * 1000);
+  const started = startOfUtcDay(storedStarted);
+  const isCurrentDay = started.getTime() === todayStartedAt.getTime();
+  const resetAt = addUtcDays(todayStartedAt, 1);
   const limit = PLAN_LIMITS[plan];
-  const used = Math.min(Number(user.designUsage?.used || 0), limit);
+  const used = isCurrentDay ? Math.min(Number(user.designUsage?.used || 0), limit) : 0;
 
   return {
     plan,

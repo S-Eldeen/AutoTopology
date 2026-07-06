@@ -1,9 +1,10 @@
-import { ArrowUp, Square, Copy, Check } from 'lucide-react';
+import { ArrowUp, Square, Copy, Check, Mic, AudioLines } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useChatStore } from '../../stores/chatStore.js';
 import { useAutoResizeTextarea } from '../../hooks/useAutoResizeTextarea.js';
+import { useVoiceInput } from '../../hooks/useVoiceInput.js';
 import ActionTrace from './ActionTrace.jsx';
 import DownloadKit from './DownloadKit.jsx';
 import TopologyPreviewCard from './TopologyPreviewCard.jsx';
@@ -28,6 +29,12 @@ export default function ConversationView() {
   const [text, setText] = useState('');
   const scrollRef = useRef(null);
   const inputRef = useAutoResizeTextarea(text);
+  const {
+    isListening,
+    isVoiceSupported,
+    voiceMessage,
+    toggleListening,
+  } = useVoiceInput({ text, setText });
 
   const activeMessages = activeSessionId ? (messages[activeSessionId] || []) : [];
 
@@ -97,7 +104,12 @@ export default function ConversationView() {
               {error}
             </div>
           )}
-          <div className="flex items-end gap-2 rounded-[20px] border border-white/[0.08] bg-[#131A24] px-5 py-3 focus-within:border-brand-500/50 focus-within:ring-1 focus-within:ring-brand-500/20 transition-all shadow-lg shadow-black/20">
+          {voiceMessage && (
+            <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+              {voiceMessage}
+            </div>
+          )}
+          <div className="flex items-end gap-2 rounded-[20px] border border-white/[0.10] bg-[#050b0a]/90 px-5 py-3 focus-within:border-brand-500/60 focus-within:ring-1 focus-within:ring-brand-500/25 transition-all shadow-lg shadow-black/25">
             <textarea
               ref={inputRef}
               data-chat-input
@@ -109,6 +121,22 @@ export default function ConversationView() {
               className="flex-1 bg-transparent text-[15px] text-white placeholder-zinc-500 resize-none focus:outline-none leading-relaxed transition-[height] duration-150 ease-out overscroll-contain"
               style={{ minHeight: '24px', height: '24px', overflowY: 'hidden' }}
             />
+            {isVoiceSupported && (
+              <button
+                type="button"
+                onClick={toggleListening}
+                disabled={isStreaming}
+                className={`flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full transition-colors ${
+                  isListening
+                    ? 'bg-red-500/15 text-red-300 ring-1 ring-red-400/40 animate-pulse'
+                    : 'text-zinc-400 hover:bg-white/5 hover:text-white disabled:text-zinc-600 disabled:hover:bg-transparent'
+                }`}
+                aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                title={isListening ? 'Stop voice input' : 'Start voice input'}
+              >
+                {isListening ? <AudioLines size={16} /> : <Mic size={16} />}
+              </button>
+            )}
             <button
               onClick={isStreaming ? stopStreaming : handleSend}
               disabled={!isStreaming && !text.trim()}

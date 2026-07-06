@@ -247,12 +247,12 @@ export default function Sidebar({
       )}
 
       <aside
-        className={`fixed top-0 left-0 h-full w-[280px] bg-zinc-900 border-r border-zinc-800 z-40 flex flex-col transition-transform duration-300 ease-out font-sans antialiased ${
+        className={`fixed top-0 left-0 h-full w-[280px] bg-[#050b0a]/95 border-r border-white/[0.08] z-40 flex flex-col transition-transform duration-300 ease-out font-sans antialiased ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 h-14 border-b border-zinc-800 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 h-14 border-b border-white/[0.08] flex-shrink-0">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-sm">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -272,10 +272,10 @@ export default function Sidebar({
         </div>
 
         {/* New Chat — desaturated emerald */}
-        <div className="p-3 border-b border-zinc-800 flex-shrink-0">
+        <div className="p-3 border-b border-white/[0.08] flex-shrink-0">
           <button
             onClick={onNewChat}
-            className="w-full flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-medium px-3 py-2.5 transition-colors shadow-sm"
+            className="w-full flex items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-white text-sm font-medium px-3 py-2.5 transition-colors shadow-sm shadow-brand-500/20"
           >
             <Plus size={16} />
             <span>New Chat</span>
@@ -309,7 +309,7 @@ export default function Sidebar({
         </div>
 
         {/* Profile popover */}
-        <div className="border-t border-zinc-800 p-3 flex-shrink-0 relative">
+        <div className="border-t border-white/[0.08] p-3 flex-shrink-0 relative">
           <button
             onClick={() => setProfileOpen(!profileOpen)}
             className="w-full flex items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-zinc-800 transition-colors"

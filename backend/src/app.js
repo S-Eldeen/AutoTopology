@@ -20,6 +20,7 @@ import sessionRoutes from './routes/session.routes.js';
 import topologyRoutes from './routes/topology.routes.js';
 import exportRoutes from './routes/export.routes.js';
 import paymentRoutes, { stripeWebhookHandler } from './routes/payment.routes.js';
+import voiceRoutes from './routes/voice.routes.js';
 
 const app = express();
 
@@ -74,6 +75,7 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/topology', topologyRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/voice', express.raw({ type: 'audio/*', limit: '10mb' }), voiceRoutes);
 
 // ── 404 + error handler (must be last) ──────────────────────
 app.use(notFoundHandler);

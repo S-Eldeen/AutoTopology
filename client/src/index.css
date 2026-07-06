@@ -7,7 +7,7 @@
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-zinc-950 text-zinc-100 font-sans antialiased;
+    @apply bg-navy-950 text-zinc-100 font-sans antialiased;
     margin: 0;
     font-feature-settings: 'cv11', 'ss01', 'ss03';
   }
@@ -25,21 +25,21 @@
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-950 disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-primary {
-    @apply btn bg-emerald-600 text-white hover:bg-emerald-500 focus:ring-emerald-500 shadow-sm hover:shadow-md hover:shadow-emerald-500/20 active:scale-[0.98];
+    @apply btn bg-brand-500 text-white hover:bg-brand-400 focus:ring-brand-500 shadow-sm shadow-brand-500/20 hover:shadow-md hover:shadow-brand-500/30 active:scale-[0.98];
   }
   .btn-secondary {
-    @apply btn bg-zinc-800 text-zinc-100 border border-zinc-700 hover:border-emerald-500/50 hover:text-emerald-400 focus:ring-emerald-500;
+    @apply btn bg-black/25 text-zinc-100 border border-white/10 hover:border-brand-500/50 hover:text-brand-300 focus:ring-brand-500;
   }
   .btn-ghost {
-    @apply btn text-zinc-400 hover:bg-zinc-800 hover:text-white;
+    @apply btn text-zinc-300 hover:bg-white/5 hover:text-white;
   }
 
   /* ── Cards ─────────────────────────────────── */
   .card {
-    @apply rounded-2xl border border-zinc-800 bg-zinc-900 shadow-lg shadow-black/20;
+    @apply rounded-2xl border border-white/[0.08] bg-[#050b0a]/80 shadow-lg shadow-black/25;
   }
   .card-elevated {
-    @apply rounded-2xl border border-zinc-700/60 bg-zinc-900/80 backdrop-blur-sm shadow-xl shadow-black/30;
+    @apply rounded-2xl border border-white/[0.09] bg-[#050b0a]/85 backdrop-blur-sm shadow-xl shadow-black/35;
   }
 
   /* ── Badges ────────────────────────────────── */
@@ -52,20 +52,20 @@
 
   /* ── Forms ─────────────────────────────────── */
   .input {
-    @apply w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 transition-colors focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30;
+    @apply w-full rounded-lg border border-white/[0.08] bg-black/25 px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25;
   }
 
   /* ── Text utilities ────────────────────────── */
   .text-gradient-brand {
-    @apply bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-brand-300 via-brand-500 to-brand-300 bg-clip-text text-transparent;
   }
 }
 
 /* ── Scrollbar (zinc dark) ─────────────────────── */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: #18181b; }
-::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 5px; }
-::-webkit-scrollbar-thumb:hover { background: #52525b; }
+::-webkit-scrollbar-track { background: #020706; }
+::-webkit-scrollbar-thumb { background: #17332a; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #235343; }
 
 /* ═══════════════════════════════════════════════════════════
    PULSING EMERALD STREAMING CURSOR
