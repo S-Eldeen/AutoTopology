@@ -109,7 +109,7 @@ export default function ConversationView() {
               {voiceMessage}
             </div>
           )}
-          <div className="flex items-end gap-2 rounded-[20px] border border-white/[0.10] bg-[#050b0a]/90 px-5 py-3 focus-within:border-brand-500/60 focus-within:ring-1 focus-within:ring-brand-500/25 transition-all shadow-lg shadow-black/25">
+          <div className="flex items-end gap-2 rounded-[20px] border border-white/[0.10] bg-[#050b0a]/90 px-5 py-3 shadow-lg shadow-black/25 transition-all duration-200 focus-within:border-brand-400/80 focus-within:bg-brand-950/70 focus-within:ring-1 focus-within:ring-brand-400/35 focus-within:shadow-[0_0_0_1px_rgba(18,189,131,0.12),0_0_28px_rgba(7,155,107,0.28)]">
             <textarea
               ref={inputRef}
               data-chat-input

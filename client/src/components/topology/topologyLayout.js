@@ -156,7 +156,7 @@ export function computeHierarchicalLayout(nodes = [], links = [], opts = {}) {
   const positionedNodes = [];
   for (const originalTier of usedTiers) {
     const layerIdx = tierRemap[originalTier];
-    const y = topPad + layerIdx * vGap;
+    const y = height - bottomPad - layerIdx * vGap;
     const group = tierGroups[originalTier];
     const count = group.length;
 

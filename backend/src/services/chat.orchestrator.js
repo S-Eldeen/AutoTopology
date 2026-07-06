@@ -287,9 +287,115 @@ function buildSystemPrompt(intent, isFirstMessage, hasTopology) {
   return prompt;
 }
 
-function buildLLMMessages(session, userMessage, isFirstMessage, intent) {
+function topologyCore(topologyDict = {}) {
+  return topologyDict.topology || topologyDict;
+}
+
+function endpointLabel(endpoint = {}, nodeMap = new Map()) {
+  const node = nodeMap.get(endpoint.node_id) || {};
+  const name = node.name || endpoint.node_id || 'unknown';
+  const type = node.node_type || 'unknown';
+  const adapter = endpoint.adapter_number ?? 0;
+  const port = endpoint.port_number ?? 0;
+  let iface = `adapter${adapter}/port${port}`;
+
+  if (type === 'ethernet_switch' || type === 'ethernet_hub') {
+    iface = `Ethernet${port}`;
+  } else if (type === 'vpcs' || type === 'traceng') {
+    iface = `eth${port}`;
+  } else if (type === 'qemu' || type === 'docker' || type === 'virtualbox' || type === 'vmware') {
+    iface = `eth${adapter}`;
+  } else if (type === 'nat') {
+    iface = `nat${port}`;
+  } else if (type === 'dynamips' || type === 'iou') {
+    iface = `adapter${adapter}/port${port}`;
+  }
+
+  return `${name} (${type}) ${iface}`;
+}
+
+function formatTopologyContext({ topology, topologyDict, name, nodeCount, linkCount, designReview, assumptions }) {
+  const dict = topologyDict || topology?.topologyDict || {};
+  const core = topologyCore(dict);
+  const nodes = Array.isArray(core.nodes) ? core.nodes : [];
+  const links = Array.isArray(core.links) ? core.links : [];
+  const nodeMap = new Map(nodes.map((node) => [node.node_id, node]));
+  const topologyName = name || topology?.name || dict.name || core.name || 'Current topology';
+  const resolvedNodeCount = nodeCount ?? topology?.nodeCount ?? nodes.length;
+  const resolvedLinkCount = linkCount ?? topology?.linkCount ?? links.length;
+
+  const lines = [
+    'CURRENT TOPOLOGY CONTEXT',
+    `Name: ${topologyName}`,
+    `Size: ${resolvedNodeCount} devices, ${resolvedLinkCount} links`,
+    '',
+    'Devices:',
+  ];
+
+  if (nodes.length) {
+    for (const node of nodes.slice(0, 200)) {
+      const props = node.properties || {};
+      const details = [];
+      if (node.template_name) details.push(`template=${node.template_name}`);
+      if (props.platform) details.push(`platform=${props.platform}`);
+      if (props.image) details.push(`image=${props.image}`);
+      if (Array.isArray(props.ports_mapping) && props.ports_mapping.length) {
+        const vlanPorts = props.ports_mapping
+          .filter((port) => port.type || port.vlan)
+          .slice(0, 12)
+          .map((port) => `${port.name || `port${port.port_number}`}:${port.type || 'access'}${port.vlan ? `/vlan${port.vlan}` : ''}`);
+        if (vlanPorts.length) details.push(`ports=${vlanPorts.join(', ')}`);
+      }
+      lines.push(`- ${node.name || node.node_id} [id=${node.node_id}, type=${node.node_type || 'unknown'}${details.length ? `, ${details.join(', ')}` : ''}]`);
+    }
+    if (nodes.length > 200) lines.push(`- ... ${nodes.length - 200} more devices omitted`);
+  } else {
+    lines.push('- No devices found in topology_dict.');
+  }
+
+  lines.push('', 'Connections:');
+  if (links.length) {
+    for (const link of links.slice(0, 300)) {
+      const endpoints = Array.isArray(link.nodes) ? link.nodes : [];
+      if (endpoints.length >= 2) {
+        lines.push(`- ${link.link_id || 'link'}: ${endpointLabel(endpoints[0], nodeMap)} <-> ${endpointLabel(endpoints[1], nodeMap)}`);
+      } else {
+        lines.push(`- ${link.link_id || 'link'}: malformed link with ${endpoints.length} endpoint(s)`);
+      }
+    }
+    if (links.length > 300) lines.push(`- ... ${links.length - 300} more links omitted`);
+  } else {
+    lines.push('- No links found in topology_dict.');
+  }
+
+  const review = designReview || topology?.designReview;
+  if (Array.isArray(review) && review.length) {
+    lines.push('', 'Design review:', ...review.slice(0, 12).map((item) => `- ${item}`));
+  }
+
+  const assumptionList = assumptions || topology?.assumptions;
+  if (Array.isArray(assumptionList) && assumptionList.length) {
+    lines.push('', 'Assumptions:', ...assumptionList.slice(0, 12).map((item) => `- ${item}`));
+  }
+
+  lines.push('', 'Use this context to answer questions about the generated design. Do not claim you cannot see the topology; the devices and connections above are the current topology.');
+  return lines.join('\n');
+}
+
+async function buildCurrentTopologyContext(session) {
+  if (!session?.currentTopologyId) return null;
+  const topology = await Topology.findById(session.currentTopologyId).lean();
+  if (!topology?.topologyDict) return null;
+  return formatTopologyContext({ topology });
+}
+
+async function buildLLMMessages(session, userMessage, isFirstMessage, intent) {
   const hasTopology = !!session.currentTopologyId;
   const messages = [{ role: 'system', content: buildSystemPrompt(intent, isFirstMessage, hasTopology) }];
+  const topologyContext = await buildCurrentTopologyContext(session);
+  if (topologyContext) {
+    messages.push({ role: 'system', content: topologyContext });
+  }
 
   const sessionMessages = session.messages || [];
   for (const m of sessionMessages) {
@@ -678,7 +784,7 @@ export async function dispatch(sessionId, userId, userMessage) {
     return executeDirectTool(sessionId, userId, deterministicAction.tool, deterministicAction.args);
   }
 
-  let messages = buildLLMMessages(freshSession, userMessage, isFirstUser, intent);
+  let messages = await buildLLMMessages(freshSession, userMessage, isFirstUser, intent);
   let round = 0;
 
   while (round < MAX_ROUNDS) {
@@ -854,6 +960,22 @@ export async function dispatch(sessionId, userId, userMessage) {
           tool_call_id: toolCallId,
           content: JSON.stringify({ success: true, summary: result.summary }),
         });
+        if (
+          (tc.function.name === 'generate_topology' || tc.function.name === 'edit_topology')
+          && result.raw?.topology_dict
+        ) {
+          messages.push({
+            role: 'system',
+            content: formatTopologyContext({
+              topologyDict: result.raw.topology_dict,
+              name: result.raw.topology_data?.name,
+              nodeCount: result.raw.topology_data?.node_count,
+              linkCount: result.raw.topology_data?.link_count,
+              designReview: result.raw.design_review,
+              assumptions: result.raw.assumptions,
+            }),
+          });
+        }
       } catch (err) {
         messages.push({
           role: 'tool',

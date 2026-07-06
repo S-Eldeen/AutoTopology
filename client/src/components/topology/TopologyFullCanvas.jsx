@@ -62,6 +62,8 @@ export default function TopologyFullCanvas({ topology, onClose }) {
     cardBorderSelected: '#10b981',
     nodeText: '#0f172a',     // slate-900
     nodeSubtext: '#475569',  // slate-600
+    nodeIconBg: '#f1f5f9',
+    nodeIconColor: '#475569',
     layerLabel: '#64748b',   // slate-500
     edge: EDGE_COLOR_LIGHT,
     edgeSelected: '#059669', // emerald-600
@@ -83,6 +85,8 @@ export default function TopologyFullCanvas({ topology, onClose }) {
     cardBorderSelected: '#10b981',
     nodeText: '#fafafa',
     nodeSubtext: '#a1a1aa',
+    nodeIconBg: 'rgba(39,39,42,0.95)',
+    nodeIconColor: '#d4d4d8',
     layerLabel: '#52525b',   // zinc-600
     edge: EDGE_COLOR_DARK,
     edgeSelected: '#34d399',
@@ -114,7 +118,7 @@ export default function TopologyFullCanvas({ topology, onClose }) {
   // Keyed by topologyId so each topology remembers its own layout.
   // When the user drags nodes, we save positions; on reopen, we restore them.
   const topoId = topology?.topologyId || topology?.topology_data?.name || 'default';
-  const STORAGE_KEY = `structuranet:topo-positions:${topoId}`;
+  const STORAGE_KEY = `structuranet:topo-positions:v2-up:${topoId}`;
 
   // Initialize positions: load from localStorage if present, else use layout
   useEffect(() => {
@@ -497,9 +501,9 @@ export default function TopologyFullCanvas({ topology, onClose }) {
                     fill={color} rx={2} />
                   {/* icon chip (small circle with icon) */}
                   <circle cx={-NODE_W/2 + 22} cy={0} r={11}
-                    fill={`${color}22`} />
+                    fill={theme.nodeIconBg} />
                   <foreignObject x={-NODE_W/2 + 11} y={-8} width={22} height={22} style={{ pointerEvents: 'none' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', color }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', color: theme.nodeIconColor }}>
                       <NodeIcon node={n} />
                     </div>
                   </foreignObject>
