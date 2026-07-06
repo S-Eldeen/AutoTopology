@@ -124,14 +124,11 @@ export const useChatStore = create((set, get) => ({
   },
 
   createSession: async () => {
-    // Lazy session creation: just reset the UI state to show the empty
-    // state. The actual DB session is created on the first sendMessage
-    // call (see sendMessage below). This prevents empty "New Chat" entries
-    // from cluttering the sidebar when the user clicks "New Chat" but
-    // never sends a message.
-    sseManager.disconnect();
-    set({
-      activeSessionId: null,
+    const { sessionId } = await sessionApi.create();
+    set((s) => ({
+      sessions: [{ _id: sessionId, title: 'New Chat', starred: false, createdAt: new Date().toISOString() }, ...s.sessions],
+      activeSessionId: sessionId,
+      messages: { ...s.messages, [sessionId]: [] },
       streamingText: '',
       isStreaming: false,
       streamingSessionId: null,
@@ -139,7 +136,9 @@ export const useChatStore = create((set, get) => ({
       topology: null,
       exportKit: null,
       error: null,
-    });
+    }));
+    sseManager.connect(sessionId, get().handleSSEEvent);
+    return sessionId;
   },
 
   selectSession: async (sessionId) => {
@@ -305,24 +304,8 @@ export const useChatStore = create((set, get) => ({
   },
 
   sendMessage: async (content) => {
-    if (!content.trim()) return;
-
-    // Lazy session creation: if there's no active session, create one now
-    // (on the server) just before sending the first message. This ensures
-    // sessions are only created when the user actually sends a message —
-    // not when they click "New Chat".
-    let sessionId = get().activeSessionId;
-    if (!sessionId) {
-      const result = await sessionApi.create();
-      sessionId = result.sessionId;
-      set((s) => ({
-        sessions: [{ _id: sessionId, title: 'New Chat', starred: false, createdAt: new Date().toISOString() }, ...s.sessions],
-        activeSessionId: sessionId,
-        messages: { ...s.messages, [sessionId]: [] },
-      }));
-      sseManager.connect(sessionId, get().handleSSEEvent);
-    }
-
+    const sessionId = get().activeSessionId;
+    if (!sessionId || !content.trim()) return;
     let usage = useAuthStore.getState().user?.usage;
     if (isDesignPrompt(content) && usage && usage.remaining <= 0) {
       try {

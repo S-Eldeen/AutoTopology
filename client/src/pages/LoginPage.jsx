@@ -131,7 +131,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen grid lg:grid-cols-[3fr_2fr]" style={{ background: '#020706' }}>
       {/* ─────────────── Left: Brand panel (60%) ─────────────── */}
-      <div className="relative hidden lg:flex flex-col justify-center text-white overflow-hidden" style={{ background: 'radial-gradient(circle at 72% 48%, rgba(7,155,107,0.16), transparent 34%), linear-gradient(135deg, #020706 0%, #061411 50%, #020706 100%)' }}>
+      <div className="relative hidden lg:flex flex-col justify-between text-white overflow-hidden" style={{ background: 'radial-gradient(circle at 72% 48%, rgba(7,155,107,0.16), transparent 34%), linear-gradient(135deg, #020706 0%, #061411 50%, #020706 100%)' }}>
         {/* Green glow — same as landing page */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-brand-500/14 to-transparent rounded-full blur-3xl pointer-events-none" aria-hidden />
         {/* Network nodes + lines — same as landing page */}
@@ -139,25 +139,31 @@ export default function LoginPage() {
           <line x1="80" y1="60" x2="220" y2="120" stroke="#10B981" strokeWidth="1" /><line x1="220" y1="120" x2="380" y2="80" stroke="#10B981" strokeWidth="1" /><line x1="380" y1="80" x2="520" y2="140" stroke="#10B981" strokeWidth="1" /><line x1="520" y1="140" x2="680" y2="100" stroke="#10B981" strokeWidth="1" /><line x1="680" y1="100" x2="840" y2="160" stroke="#10B981" strokeWidth="1" /><line x1="840" y1="160" x2="1000" y2="120" stroke="#10B981" strokeWidth="1" /><line x1="1000" y1="120" x2="1120" y2="180" stroke="#10B981" strokeWidth="1" /><line x1="80" y1="60" x2="140" y2="220" stroke="#10B981" strokeWidth="1" /><line x1="220" y1="120" x2="300" y2="260" stroke="#10B981" strokeWidth="1" /><line x1="380" y1="80" x2="440" y2="240" stroke="#10B981" strokeWidth="1" /><line x1="520" y1="140" x2="580" y2="300" stroke="#10B981" strokeWidth="1" /><line x1="680" y1="100" x2="740" y2="280" stroke="#10B981" strokeWidth="1" /><line x1="840" y1="160" x2="900" y2="320" stroke="#10B981" strokeWidth="1" /><line x1="1000" y1="120" x2="1060" y2="260" stroke="#10B981" strokeWidth="1" /><line x1="140" y1="220" x2="300" y2="260" stroke="#10B981" strokeWidth="1" /><line x1="300" y1="260" x2="440" y2="240" stroke="#10B981" strokeWidth="1" /><line x1="440" y1="240" x2="580" y2="300" stroke="#10B981" strokeWidth="1" /><line x1="580" y1="300" x2="740" y2="280" stroke="#10B981" strokeWidth="1" /><line x1="740" y1="280" x2="900" y2="320" stroke="#10B981" strokeWidth="1" /><line x1="900" y1="320" x2="1060" y2="260" stroke="#10B981" strokeWidth="1" /><line x1="140" y1="220" x2="200" y2="400" stroke="#10B981" strokeWidth="1" /><line x1="300" y1="260" x2="360" y2="420" stroke="#10B981" strokeWidth="1" /><line x1="440" y1="240" x2="500" y2="440" stroke="#10B981" strokeWidth="1" /><line x1="580" y1="300" x2="640" y2="460" stroke="#10B981" strokeWidth="1" /><line x1="740" y1="280" x2="800" y2="440" stroke="#10B981" strokeWidth="1" /><line x1="900" y1="320" x2="960" y2="480" stroke="#10B981" strokeWidth="1" /><line x1="1060" y1="260" x2="1100" y2="420" stroke="#10B981" strokeWidth="1" /><line x1="200" y1="400" x2="360" y2="420" stroke="#10B981" strokeWidth="1" /><line x1="360" y1="420" x2="500" y2="440" stroke="#10B981" strokeWidth="1" /><line x1="500" y1="440" x2="640" y2="460" stroke="#10B981" strokeWidth="1" /><line x1="640" y1="460" x2="800" y2="440" stroke="#10B981" strokeWidth="1" /><line x1="800" y1="440" x2="960" y2="480" stroke="#10B981" strokeWidth="1" /><line x1="960" y1="480" x2="1100" y2="420" stroke="#10B981" strokeWidth="1" /><line x1="200" y1="400" x2="260" y2="600" stroke="#10B981" strokeWidth="1" /><line x1="360" y1="420" x2="420" y2="620" stroke="#10B981" strokeWidth="1" /><line x1="500" y1="440" x2="560" y2="640" stroke="#10B981" strokeWidth="1" /><line x1="640" y1="460" x2="700" y2="620" stroke="#10B981" strokeWidth="1" /><line x1="800" y1="440" x2="860" y2="660" stroke="#10B981" strokeWidth="1" /><line x1="960" y1="480" x2="1020" y2="640" stroke="#10B981" strokeWidth="1" /><line x1="260" y1="600" x2="420" y2="620" stroke="#10B981" strokeWidth="1" /><line x1="420" y1="620" x2="560" y2="640" stroke="#10B981" strokeWidth="1" /><line x1="560" y1="640" x2="700" y2="620" stroke="#10B981" strokeWidth="1" /><line x1="700" y1="620" x2="860" y2="660" stroke="#10B981" strokeWidth="1" /><line x1="860" y1="660" x2="1020" y2="640" stroke="#10B981" strokeWidth="1" /><circle cx="80" cy="60" r="3" fill="#10B981" /><circle cx="220" cy="120" r="3" fill="#10B981" /><circle cx="380" cy="80" r="3" fill="#10B981" /><circle cx="520" cy="140" r="3" fill="#10B981" /><circle cx="680" cy="100" r="3" fill="#10B981" /><circle cx="840" cy="160" r="3" fill="#10B981" /><circle cx="1000" cy="120" r="3" fill="#10B981" /><circle cx="1120" cy="180" r="3" fill="#10B981" /><circle cx="140" cy="220" r="3" fill="#10B981" /><circle cx="300" cy="260" r="3" fill="#10B981" /><circle cx="440" cy="240" r="3" fill="#10B981" /><circle cx="580" cy="300" r="3" fill="#10B981" /><circle cx="740" cy="280" r="3" fill="#10B981" /><circle cx="900" cy="320" r="3" fill="#10B981" /><circle cx="1060" cy="260" r="3" fill="#10B981" /><circle cx="200" cy="400" r="3" fill="#10B981" /><circle cx="360" cy="420" r="3" fill="#10B981" /><circle cx="500" cy="440" r="3" fill="#10B981" /><circle cx="640" cy="460" r="3" fill="#10B981" /><circle cx="800" cy="440" r="3" fill="#10B981" /><circle cx="960" cy="480" r="3" fill="#10B981" /><circle cx="1100" cy="420" r="3" fill="#10B981" /><circle cx="260" cy="600" r="3" fill="#10B981" /><circle cx="420" cy="620" r="3" fill="#10B981" /><circle cx="560" cy="640" r="3" fill="#10B981" /><circle cx="700" cy="620" r="3" fill="#10B981" /><circle cx="860" cy="660" r="3" fill="#10B981" /><circle cx="1020" cy="640" r="3" fill="#10B981" />
         </svg>
 
-        {/* Centered content — logo + headline + features grouped together */}
-        <div className="relative px-10 max-w-lg z-10">
-          <Link to="/" className="flex items-center gap-2.5 group mb-8">
+        {/* Top: Logo */}
+        <div className="relative p-10 z-10">
+          <Link to="/" className="flex items-center gap-2.5 group">
             <BrandLogo />
             <span className="font-semibold text-lg tracking-tight">
               StructuraNet<span className="text-emerald-400"> AI</span>
             </span>
           </Link>
+        </div>
+
+        {/* Middle: Headline + features */}
+        <div className="relative px-10 pb-10 max-w-lg z-10">
           <h1 className="text-4xl font-bold tracking-tight leading-tight mb-4">
             Design networks<br />
             <span className="bg-gradient-to-r from-emerald-300 via-emerald-200 to-emerald-300 bg-clip-text text-transparent">
               in plain English.
             </span>
           </h1>
-          <p className="text-zinc-400 leading-relaxed mb-6">
+          <p className="text-zinc-400 leading-relaxed mb-8">
             Sign in to pick up where you left off — your topologies, exports, and
             calibration are waiting.
           </p>
-          <ul className="space-y-3">
+
+          {/* Feature list with unique icons */}
+          <ul className="space-y-4">
             {FEATURES.map((f, i) => (
               <li key={i} className="flex items-start gap-3 text-sm text-zinc-300">
                 <span className="mt-0.5 flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/20 text-emerald-400">
@@ -170,98 +176,105 @@ export default function LoginPage() {
         </div>
 
         {/* Bottom: copyright */}
-        <div className="absolute bottom-6 left-10 text-xs text-zinc-600 z-10">
+        <div className="relative p-10 text-xs text-zinc-600 z-10">
           © {new Date().getFullYear()} StructuraNet AI · Early access available
         </div>
       </div>
 
-      {/* ─────────────── Right: Form panel (40%) — creamy off-white ─────────────── */}
-      <div className="flex items-center justify-center px-6 py-12 sm:px-12 relative overflow-hidden bg-[#FAFAF9]">
+      {/* ─────────────── Right: Form panel (40%) ─────────────── */}
+      <div className="flex items-center justify-center px-6 py-12 sm:px-12 relative overflow-hidden" style={{ background: 'radial-gradient(circle at 38% 56%, rgba(7,155,107,0.12), transparent 35%), linear-gradient(135deg, #020706 0%, #061411 50%, #020706 100%)' }}>
+        {/* Green glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[400px] bg-gradient-to-b from-brand-500/14 to-transparent rounded-full blur-3xl pointer-events-none" aria-hidden />
+        {/* Network nodes + lines */}
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" style={{ opacity: 0.06 }} aria-hidden>
+          <line x1="80" y1="60" x2="220" y2="120" stroke="#10B981" strokeWidth="1" /><line x1="220" y1="120" x2="380" y2="80" stroke="#10B981" strokeWidth="1" /><line x1="380" y1="80" x2="520" y2="140" stroke="#10B981" strokeWidth="1" /><line x1="520" y1="140" x2="680" y2="100" stroke="#10B981" strokeWidth="1" /><line x1="680" y1="100" x2="840" y2="160" stroke="#10B981" strokeWidth="1" /><line x1="840" y1="160" x2="1000" y2="120" stroke="#10B981" strokeWidth="1" /><line x1="1000" y1="120" x2="1120" y2="180" stroke="#10B981" strokeWidth="1" /><line x1="80" y1="60" x2="140" y2="220" stroke="#10B981" strokeWidth="1" /><line x1="220" y1="120" x2="300" y2="260" stroke="#10B981" strokeWidth="1" /><line x1="380" y1="80" x2="440" y2="240" stroke="#10B981" strokeWidth="1" /><line x1="520" y1="140" x2="580" y2="300" stroke="#10B981" strokeWidth="1" /><line x1="680" y1="100" x2="740" y2="280" stroke="#10B981" strokeWidth="1" /><line x1="840" y1="160" x2="900" y2="320" stroke="#10B981" strokeWidth="1" /><line x1="1000" y1="120" x2="1060" y2="260" stroke="#10B981" strokeWidth="1" /><line x1="140" y1="220" x2="300" y2="260" stroke="#10B981" strokeWidth="1" /><line x1="300" y1="260" x2="440" y2="240" stroke="#10B981" strokeWidth="1" /><line x1="440" y1="240" x2="580" y2="300" stroke="#10B981" strokeWidth="1" /><line x1="580" y1="300" x2="740" y2="280" stroke="#10B981" strokeWidth="1" /><line x1="740" y1="280" x2="900" y2="320" stroke="#10B981" strokeWidth="1" /><line x1="900" y1="320" x2="1060" y2="260" stroke="#10B981" strokeWidth="1" /><line x1="140" y1="220" x2="200" y2="400" stroke="#10B981" strokeWidth="1" /><line x1="300" y1="260" x2="360" y2="420" stroke="#10B981" strokeWidth="1" /><line x1="440" y1="240" x2="500" y2="440" stroke="#10B981" strokeWidth="1" /><line x1="580" y1="300" x2="640" y2="460" stroke="#10B981" strokeWidth="1" /><line x1="740" y1="280" x2="800" y2="440" stroke="#10B981" strokeWidth="1" /><line x1="900" y1="320" x2="960" y2="480" stroke="#10B981" strokeWidth="1" /><line x1="1060" y1="260" x2="1100" y2="420" stroke="#10B981" strokeWidth="1" /><line x1="200" y1="400" x2="360" y2="420" stroke="#10B981" strokeWidth="1" /><line x1="360" y1="420" x2="500" y2="440" stroke="#10B981" strokeWidth="1" /><line x1="500" y1="440" x2="640" y2="460" stroke="#10B981" strokeWidth="1" /><line x1="640" y1="460" x2="800" y2="440" stroke="#10B981" strokeWidth="1" /><line x1="800" y1="440" x2="960" y2="480" stroke="#10B981" strokeWidth="1" /><line x1="960" y1="480" x2="1100" y2="420" stroke="#10B981" strokeWidth="1" /><line x1="200" y1="400" x2="260" y2="600" stroke="#10B981" strokeWidth="1" /><line x1="360" y1="420" x2="420" y2="620" stroke="#10B981" strokeWidth="1" /><line x1="500" y1="440" x2="560" y2="640" stroke="#10B981" strokeWidth="1" /><line x1="640" y1="460" x2="700" y2="620" stroke="#10B981" strokeWidth="1" /><line x1="800" y1="440" x2="860" y2="660" stroke="#10B981" strokeWidth="1" /><line x1="960" y1="480" x2="1020" y2="640" stroke="#10B981" strokeWidth="1" /><line x1="260" y1="600" x2="420" y2="620" stroke="#10B981" strokeWidth="1" /><line x1="420" y1="620" x2="560" y2="640" stroke="#10B981" strokeWidth="1" /><line x1="560" y1="640" x2="700" y2="620" stroke="#10B981" strokeWidth="1" /><line x1="700" y1="620" x2="860" y2="660" stroke="#10B981" strokeWidth="1" /><line x1="860" y1="660" x2="1020" y2="640" stroke="#10B981" strokeWidth="1" /><circle cx="80" cy="60" r="3" fill="#10B981" /><circle cx="220" cy="120" r="3" fill="#10B981" /><circle cx="380" cy="80" r="3" fill="#10B981" /><circle cx="520" cy="140" r="3" fill="#10B981" /><circle cx="680" cy="100" r="3" fill="#10B981" /><circle cx="840" cy="160" r="3" fill="#10B981" /><circle cx="1000" cy="120" r="3" fill="#10B981" /><circle cx="1120" cy="180" r="3" fill="#10B981" /><circle cx="140" cy="220" r="3" fill="#10B981" /><circle cx="300" cy="260" r="3" fill="#10B981" /><circle cx="440" cy="240" r="3" fill="#10B981" /><circle cx="580" cy="300" r="3" fill="#10B981" /><circle cx="740" cy="280" r="3" fill="#10B981" /><circle cx="900" cy="320" r="3" fill="#10B981" /><circle cx="1060" cy="260" r="3" fill="#10B981" /><circle cx="200" cy="400" r="3" fill="#10B981" /><circle cx="360" cy="420" r="3" fill="#10B981" /><circle cx="500" cy="440" r="3" fill="#10B981" /><circle cx="640" cy="460" r="3" fill="#10B981" /><circle cx="800" cy="440" r="3" fill="#10B981" /><circle cx="960" cy="480" r="3" fill="#10B981" /><circle cx="1100" cy="420" r="3" fill="#10B981" /><circle cx="260" cy="600" r="3" fill="#10B981" /><circle cx="420" cy="620" r="3" fill="#10B981" /><circle cx="560" cy="640" r="3" fill="#10B981" /><circle cx="700" cy="620" r="3" fill="#10B981" /><circle cx="860" cy="660" r="3" fill="#10B981" /><circle cx="1020" cy="640" r="3" fill="#10B981" />
+        </svg>
         {/* Mobile logo */}
         <div className="lg:hidden absolute top-6 left-6">
           <Link to="/" className="flex items-center gap-2">
             <BrandLogo className="w-8 h-8" />
-            <span className="font-semibold text-zinc-900">StructuraNet AI</span>
+            <span className="font-semibold text-white">StructuraNet AI</span>
           </Link>
         </div>
 
-        {/* Form card */}
+        {/* Form card — subtle container with border + radius */}
         <div className="w-full max-w-sm animate-fade-in-up relative z-10">
-          <div className="mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight">Welcome back</h2>
-            <p className="text-zinc-500 mt-1.5 text-sm">Sign in to StructuraNet AI to continue designing.</p>
+          <div className="rounded-2xl border border-white/[0.08] bg-[#050b0a]/78 backdrop-blur-sm p-8 shadow-2xl shadow-black/25">
+            <div className="mb-7">
+              <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Welcome back</h2>
+              <p className="text-zinc-500 mt-1.5 text-sm">Sign in to StructuraNet AI to continue designing.</p>
+            </div>
+
+            {error && (
+              <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400 animate-fade-in-down">
+                <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input rounded-xl"
+                  placeholder="you@example.com"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-medium text-zinc-300">Password</label>
+                  <button type="button" className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
+                    Forgot password?
+                  </button>
+                </div>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input rounded-xl"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full py-3 text-base rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-transform"
+              >
+                {loading ? (
+                  <>
+                    <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Signing in…
+                  </>
+                ) : (
+                  'Sign in'
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center text-sm text-zinc-500">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-emerald-400 hover:text-emerald-300 font-medium hover:underline underline-offset-2">
+                Create one
+              </Link>
+            </div>
           </div>
 
-          {error && (
-            <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 animate-fade-in-down">
-              <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span>{error}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1.5">Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl bg-white border border-gray-200 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 shadow-sm focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/15 transition-all"
-                placeholder="you@example.com"
-                autoFocus
-              />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-zinc-700">Password</label>
-                <button type="button" className="text-xs text-emerald-600 hover:text-emerald-500 font-medium transition-colors">
-                  Forgot password?
-                </button>
-              </div>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl bg-white border border-gray-200 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 shadow-sm focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/15 transition-all"
-                placeholder="••••••••"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 text-base rounded-xl text-white font-medium transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-abled"
-              style={{ background: 'linear-gradient(180deg, #10b981, #0d9668)', boxShadow: '0 1px 0 rgba(255,255,255,0.12) inset, 0 4px 14px rgba(16,185,129,0.25)' }}
-            >
-              {loading ? (
-                <>
-                  <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Signing in…
-                </>
-              ) : (
-                'Sign in'
-              )}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center text-sm text-zinc-500">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-emerald-600 hover:text-emerald-500 font-medium hover:underline underline-offset-2">
-              Create one
+          <div className="mt-5 text-center">
+            <Link to="/" className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
+              ← Back to home
             </Link>
           </div>
-        </div>
-
-        <div className="absolute bottom-6 left-0 right-0 text-center">
-          <Link to="/" className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">
-            ← Back to home
-          </Link>
         </div>
       </div>
 
