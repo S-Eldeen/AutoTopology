@@ -51,6 +51,8 @@ export default function OnboardingModal() {
   const [saving, setSaving] = useState(false);
   const [showDeviceList, setShowDeviceList] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState(null);  // the device the user is currently mapping
+  const [mappingTemplate, setMappingTemplate] = useState('');
+  const [mappingImage, setMappingImage] = useState('');
   const searchRef = useRef(null);
 
   // ── GNS3 version options ──────────────────────────────────
@@ -117,6 +119,12 @@ export default function OnboardingModal() {
     [imageMap]
   );
 
+  const selectedMappingDevice = useMemo(() => {
+    if (!mappingTemplate.trim() || !catalog?.devices) return null;
+    const normalized = mappingTemplate.trim().toLowerCase();
+    return catalog.devices.find((device) => device.template.toLowerCase() === normalized) || null;
+  }, [catalog, mappingTemplate]);
+
   // ── Handlers ──────────────────────────────────────────────
   const handleClose = () => closeProfileModal();
 
@@ -127,6 +135,20 @@ export default function OnboardingModal() {
   const handleUseDefault = (template, defaultImage) => {
     if (!defaultImage) return;
     setImageMap(prev => ({ ...prev, [template]: defaultImage }));
+  };
+
+  const handleUseMappingDefault = () => {
+    if (!selectedMappingDevice?.default_image) return;
+    setMappingImage(selectedMappingDevice.default_image);
+  };
+
+  const handleSaveMapping = () => {
+    const template = mappingTemplate.trim();
+    const image = mappingImage.trim();
+    if (!template || !image) return;
+    setImageMap(prev => ({ ...prev, [template]: image }));
+    setMappingTemplate('');
+    setMappingImage('');
   };
 
   const handleClear = (template) => {
@@ -305,6 +327,67 @@ export default function OnboardingModal() {
               </div>
 
               <div className="ml-7">
+                <div className="mb-3 rounded-lg border border-zinc-700 bg-zinc-800/30 p-3">
+                  <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
+                        Device
+                      </label>
+                      <input
+                        type="text"
+                        list="gns3-device-templates"
+                        value={mappingTemplate}
+                        onChange={(e) => setMappingTemplate(e.target.value)}
+                        placeholder="Select or enter device"
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
+                      />
+                      <datalist id="gns3-device-templates">
+                        {(catalog?.devices || [])
+                          .filter((device) => device.requires_image)
+                          .map((device) => (
+                            <option key={device.template} value={device.template} />
+                          ))}
+                      </datalist>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
+                        GNS3 image
+                      </label>
+                      <input
+                        type="text"
+                        value={mappingImage}
+                        onChange={(e) => setMappingImage(e.target.value)}
+                        placeholder={selectedMappingDevice?.default_image || 'Image filename'}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-xs text-white placeholder-zinc-500 font-mono focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
+                      />
+                    </div>
+
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={handleSaveMapping}
+                        disabled={!mappingTemplate.trim() || !mappingImage.trim()}
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+                      >
+                        <Check size={13} strokeWidth={3} />
+                        Save mapping
+                      </button>
+                    </div>
+                  </div>
+
+                  {selectedMappingDevice?.default_image && (
+                    <button
+                      type="button"
+                      onClick={handleUseMappingDefault}
+                      className="mt-2 inline-flex items-center gap-1.5 text-[10px] text-zinc-500 transition-colors hover:text-emerald-400"
+                    >
+                      <RotateCcw size={11} />
+                      Use catalog default: {selectedMappingDevice.default_image}
+                    </button>
+                  )}
+                </div>
+
                 {/* Already-mapped devices (compact list) */}
                 {mappedDevices.length > 0 && (
                   <div className="space-y-1.5 mb-2.5">
@@ -315,6 +398,15 @@ export default function OnboardingModal() {
                           <div className="text-xs font-medium text-white truncate">{template}</div>
                           <div className="text-[10px] text-zinc-500 font-mono truncate">{image}</div>
                         </div>
+                        <button
+                          onClick={() => {
+                            setMappingTemplate(template);
+                            setMappingImage(image);
+                          }}
+                          className="flex-shrink-0 rounded px-2 py-1 text-[10px] font-medium text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-emerald-400"
+                        >
+                          Edit
+                        </button>
                         <button
                           onClick={() => handleClear(template)}
                           className="flex-shrink-0 p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-colors"

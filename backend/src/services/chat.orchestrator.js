@@ -258,8 +258,15 @@ BEHAVIOR:
 2. If the user is just chatting, greeting, or asking general questions, respond immediately in text WITHOUT calling any tools.
 3. Only call tools if a network design, modification, or export is explicitly requested.
 4. ANSWER THE USER'S ACTUAL QUESTION directly. Don't pivot to a capabilities pitch.
-5. Be concise. Briefly explain (1 sentence) before calling a tool, then summarize after.
+5. Before calling generate_topology, briefly reason about the design. Explain the likely network type, which devices will be used and why, how the devices should connect and why, and any assumptions such as VLANs, subnets, routing, or segmentation. End with "Building that topology now."
 6. Never re-introduce yourself or list capabilities unless this is the very first message.
+
+DESIGN REASONING:
+- For build/design requests, do not jump straight to the tool call. First provide a short "Before building, here's my design analysis:" section with concrete bullets.
+- Base the pre-build analysis on the user's requested inventory and intent. If details are missing, state reasonable assumptions instead of silently inventing them.
+- After a topology exists, answer analysis questions from the CURRENT TOPOLOGY CONTEXT system message. Reference actual device names, device types, links, interfaces, VLAN/port details, design review, and assumptions when available.
+- Do not give generic textbook answers when topology context is available. Do not say you cannot see the topology.
+- If asked "why did you connect it this way?", explain the actual generated connections and the design purpose of those links.
 
 TOOL USAGE:
 - generate_topology: ONLY when user asks to BUILD/CREATE/DESIGN a network
@@ -494,15 +501,70 @@ async function sendDirectMessage(sessionId, content) {
   sseService.broadcast(sessionId, 'complete', { summary: message, rounds: 0 });
 }
 
-function directToolIntro(toolName) {
-  if (toolName === 'generate_topology') return 'Building that topology now.';
+function extractRequestedCount(request = '', singular, plural = `${singular}s`) {
+  const pattern = new RegExp(`\\b(\\d+)\\s*(${singular}|${plural})\\b`, 'i');
+  const match = request.match(pattern);
+  return match ? Number(match[1]) : 0;
+}
+
+function buildDesignAnalysisIntro(request = '') {
+  const routers = extractRequestedCount(request, 'router');
+  const switches = extractRequestedCount(request, 'switch', 'switches');
+  const pcs = extractRequestedCount(request, 'pc', 'pcs') || extractRequestedCount(request, 'host');
+  const firewalls = extractRequestedCount(request, 'firewall');
+  const servers = extractRequestedCount(request, 'server');
+  const segments = Math.max(1, switches || routers || (pcs > 4 ? 2 : 1));
+  const vlanCount = Math.max(1, Math.min(segments, 4));
+
+  const networkType = firewalls
+    ? 'a secured small enterprise or campus lab topology'
+    : routers > 1 || switches > 1 || pcs >= 4
+      ? 'a basic enterprise/campus lab topology'
+      : 'a compact routed LAN lab topology';
+
+  const lines = [
+    "Before building, here's my design analysis:",
+    `- This is ${networkType}.`,
+  ];
+
+  if (routers) {
+    lines.push(`- ${routers} router${routers === 1 ? '' : 's'}: provide Layer 3 routing${routers > 1 ? ' between network segments and a possible router-to-router path' : ' for the LAN edge or inter-VLAN gateway'}.`);
+  }
+  if (switches) {
+    lines.push(`- ${switches} switch${switches === 1 ? '' : 'es'}: provide Layer 2 access ports for endpoint devices${switches > 1 ? ' and separate access segments' : ''}.`);
+  }
+  if (pcs) {
+    lines.push(`- ${pcs} PC${pcs === 1 ? '' : 's'}: distributed across the available switch segment${switches > 1 ? 's' : ''} instead of all devices sharing one point.`);
+  }
+  if (servers) {
+    lines.push(`- ${servers} server${servers === 1 ? '' : 's'}: placed on server/access segments so clients can reach shared services.`);
+  }
+  if (firewalls) {
+    lines.push(`- ${firewalls} firewall${firewalls === 1 ? '' : 's'}: add policy control between outside, routing, and internal segments.`);
+  }
+
+  lines.push('- PCs and hosts should connect to switches through access links.');
+  if (switches && routers) {
+    lines.push('- Switches should connect to routers through uplinks or trunks so VLAN/subnet traffic can be routed.');
+  }
+  if (routers > 1) {
+    lines.push('- A router-to-router link should provide reachability between the routed segments.');
+  }
+  lines.push(`- Assumption: use ${vlanCount} VLAN${vlanCount === 1 ? '' : 's'} or subnet segment${vlanCount === 1 ? '' : 's'} unless the generated design requires more.`);
+  lines.push('', 'Building that topology now.');
+
+  return lines.join('\n');
+}
+
+function directToolIntro(toolName, args = {}) {
+  if (toolName === 'generate_topology') return buildDesignAnalysisIntro(args.request);
   if (toolName === 'edit_topology') return 'Updating the current topology now.';
   if (toolName === 'export_project') return 'Preparing the deployment kit now.';
   return 'Working on that now.';
 }
 
 async function executeDirectTool(sessionId, userId, toolName, args) {
-  const intro = directToolIntro(toolName);
+  const intro = directToolIntro(toolName, args);
   const assistantId = await appendAssistantMessage(sessionId, {
     role: 'assistant',
     content: intro,

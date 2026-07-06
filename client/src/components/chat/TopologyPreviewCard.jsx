@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Network, Maximize2, Check } from 'lucide-react';
+import { Network, Maximize2, Check, CheckCircle2, Pencil } from 'lucide-react';
 import TopologyFullCanvas from '../topology/TopologyFullCanvas.jsx';
 import { computeHierarchicalLayout, getNodeColor } from '../topology/topologyLayout.js';
 
@@ -15,7 +15,7 @@ import { computeHierarchicalLayout, getNodeColor } from '../topology/topologyLay
  *  - A "View full topology" button that opens TopologyFullCanvas (full-screen
  *    modal with the same hierarchical layout + zoom/pan/click-to-inspect).
  */
-export default function TopologyPreviewCard({ topology }) {
+export default function TopologyPreviewCard({ topology, onAction }) {
   const [showFull, setShowFull] = useState(false);
 
   const nodes = useMemo(
@@ -106,7 +106,7 @@ export default function TopologyPreviewCard({ topology }) {
               <span className="text-xs text-zinc-500">links</span>
             </div>
             <p className="text-[11px] text-zinc-500 leading-relaxed mb-2.5">
-              Review the generated topology, then ask for changes or approve &amp; export.
+              Review the generated topology, then confirm it or request changes.
             </p>
             <button
               onClick={() => setShowFull(true)}
@@ -116,6 +116,25 @@ export default function TopologyPreviewCard({ topology }) {
               View full topology
             </button>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 border-t border-zinc-800 px-4 py-3">
+          <button
+            type="button"
+            onClick={() => onAction?.('confirm')}
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-brand-500/20 transition-colors hover:bg-brand-400"
+          >
+            <CheckCircle2 size={14} />
+            Confirm topology
+          </button>
+          <button
+            type="button"
+            onClick={() => onAction?.('edit')}
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-xs font-semibold text-zinc-200 transition-colors hover:border-brand-500/50 hover:bg-brand-950/50 hover:text-white"
+          >
+            <Pencil size={14} />
+            Edit topology
+          </button>
         </div>
       </div>
 

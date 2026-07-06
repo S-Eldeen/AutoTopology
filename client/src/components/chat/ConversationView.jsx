@@ -51,6 +51,21 @@ export default function ConversationView() {
     setText('');
   };
 
+  const handleTopologyAction = async (action) => {
+    if (isStreaming) return;
+    if (action === 'confirm') {
+      await sendMessage('This topology is confirmed. Generate the configurations and export the GNS3 project.');
+      return;
+    }
+
+    const editPrompt = 'Edit this topology: ';
+    setText(editPrompt);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(editPrompt.length, editPrompt.length);
+    });
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -64,7 +79,7 @@ export default function ConversationView() {
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
           {activeMessages.map((msg, i) => (
-            <MessageItem key={i} message={msg} />
+            <MessageItem key={i} message={msg} onTopologyAction={handleTopologyAction} />
           ))}
 
           {/* ── Streaming text with pulsing emerald cursor ── */}
@@ -237,7 +252,7 @@ function CodeBlock({ children, className }) {
 }
 
 // ── Message item ────────────────────────────────────────────
-function MessageItem({ message }) {
+function MessageItem({ message, onTopologyAction }) {
   const isUser = message.role === 'user';
 
   if (isUser) {
@@ -299,7 +314,7 @@ function MessageItem({ message }) {
         )}
         {message.topology && (
           <div className="mt-4">
-            <TopologyPreviewCard topology={message.topology} />
+            <TopologyPreviewCard topology={message.topology} onAction={onTopologyAction} />
           </div>
         )}
         {/* Download kit — inline with this message */}
