@@ -4,16 +4,8 @@ import TopologyFullCanvas from '../topology/TopologyFullCanvas.jsx';
 import { computeHierarchicalLayout, getNodeColor } from '../topology/topologyLayout.js';
 
 /**
- * TopologyPreviewCard — inline topology summary shown in the conversation
- * when the AI finishes generating a topology.
- *
- * Renders a compact card with:
- *  - Topology name + device/link counts
- *  - A mini SVG preview using a HIERARCHICAL LAYERED layout (NAT/FW at top →
- *    routers → switches → PCs at bottom) so connections flow downward with
- *    minimal crossings — readable, not a hairball.
- *  - A "View full topology" button that opens TopologyFullCanvas (full-screen
- *    modal with the same hierarchical layout + zoom/pan/click-to-inspect).
+ * TopologyPreviewCard — inline topology summary shown in the conversation.
+ * Glass design with full-width landscape preview, confirm/edit actions.
  */
 export default function TopologyPreviewCard({ topology, onAction }) {
   const [showFull, setShowFull] = useState(false);
@@ -27,13 +19,14 @@ export default function TopologyPreviewCard({ topology, onAction }) {
     [topology]
   );
 
-  // Compute hierarchical layout for the mini preview (compact 200x140 canvas)
+  // Full-width landscape preview — nodes get real spacing
+  const PREVIEW_W = 520;
+  const PREVIEW_H = 190;
+
   const layout = useMemo(
     () => computeHierarchicalLayout(nodes, links, {
-      width: 200,
-      height: 140,
-      nodeWidth: 0,   // not used for positioning in mini (we just need centers)
-      nodeHeight: 0,
+      width: PREVIEW_W,
+      height: PREVIEW_H,
     }),
     [nodes, links]
   );
@@ -44,101 +37,113 @@ export default function TopologyPreviewCard({ topology, onAction }) {
   const nodeCount = topology?.topology_data?.node_count || nodes.length;
   const linkCount = topology?.topology_data?.link_count || links.length;
 
-  // Scale the layout (which was computed for 200x140) to fit the 96x96 box
-  // with a small margin.
-  const scaleX = 96 / 200;
-  const scaleY = 96 / 140;
-
   return (
     <>
-      {/* Main card (renders inline — no avatar, the parent MessageItem provides it) */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-800/40 overflow-hidden">
+      <div
+        className="rounded-2xl overflow-hidden transition-colors hover:border-white/[0.1]"
+        style={{
+          background: 'rgba(255,255,255,0.025)',
+          border: '1px solid rgba(255,255,255,0.07)',
+        }}
+      >
         {/* Header row */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-800">
-          <Network size={15} className="text-emerald-400 flex-shrink-0" />
-          <span className="text-sm font-semibold text-white truncate flex-1">{name}</span>
-          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-2 py-0.5 flex-shrink-0">
+        <div
+          className="flex items-center gap-2.5 px-4 py-3 border-b"
+          style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+        >
+          <div
+            className="flex-shrink-0 w-6 h-6 rounded-lg flex items-center justify-center"
+            style={{ background: 'rgba(16,185,129,0.1)' }}
+          >
+            <Network size={13} className="text-emerald-400" />
+          </div>
+          <span className="text-[13.5px] font-medium text-white/90 truncate flex-1">{name}</span>
+          <span
+            className="inline-flex items-center gap-1 text-[10.5px] font-medium text-emerald-300 rounded-full px-2 py-0.5 flex-shrink-0"
+            style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}
+          >
             <Check size={10} strokeWidth={3} />
             Ready
           </span>
         </div>
 
-        {/* Body: mini preview + stats + button */}
-        <div className="flex items-center gap-4 px-4 py-3">
-          {/* Mini SVG preview — hierarchical layout */}
-          <div className="flex-shrink-0 w-24 h-24 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center overflow-hidden">
-            <svg viewBox="0 0 96 96" className="w-full h-full">
-              {/* Edges (straight lines — easy to trace) */}
-              {layout.edges.map((e, i) => (
-                <line
-                  key={i}
-                  x1={e.x1 * scaleX}
-                  y1={e.y1 * scaleY}
-                  x2={e.x2 * scaleX}
-                  y2={e.y2 * scaleY}
-                  stroke="#475569"
-                  strokeWidth="0.7"
-                  opacity="0.55"
-                />
-              ))}
-              {/* Nodes (small dots colored by role) */}
-              {layout.positionedNodes.map((n) => (
-                <circle
-                  key={n.node_id}
-                  cx={n.x * scaleX}
-                  cy={n.y * scaleY}
-                  r="2.8"
-                  fill={getNodeColor(n)}
-                  stroke="white"
-                  strokeWidth="0.5"
-                />
-              ))}
-            </svg>
-          </div>
+        {/* Preview panel — full-width landscape */}
+        <div
+          className="relative mx-4 mt-4 rounded-xl overflow-hidden"
+          style={{
+            background: 'radial-gradient(ellipse at 50% 30%, rgba(16,185,129,0.06), transparent 65%), rgba(0,0,0,0.28)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            height: '150px',
+          }}
+        >
+          <div
+            className="absolute inset-0 opacity-[0.35]"
+            style={{
+              backgroundImage: 'radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)',
+              backgroundSize: '14px 14px',
+            }}
+          />
+          <svg viewBox={`0 0 ${PREVIEW_W} ${PREVIEW_H}`} className="relative w-full h-full" preserveAspectRatio="xMidYMid meet">
+            {layout.edges.map((e, i) => (
+              <line key={i} x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
+                stroke="#71717a" strokeWidth="1.1" opacity="0.4" strokeLinecap="round" />
+            ))}
+            {layout.positionedNodes.map((n) => {
+              const color = getNodeColor(n);
+              return (
+                <g key={n.node_id}>
+                  <circle cx={n.x} cy={n.y} r="9" fill={color} opacity="0.15" />
+                  <circle cx={n.x} cy={n.y} r="4.5" fill={color} stroke="rgba(10,11,13,0.9)" strokeWidth="1.5" />
+                </g>
+              );
+            })}
+          </svg>
+        </div>
 
-          {/* Stats + action */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-3 mb-1">
-              <span className="text-xl font-semibold text-white">{nodeCount}</span>
-              <span className="text-xs text-zinc-500">devices</span>
-              <span className="text-zinc-700">·</span>
-              <span className="text-xl font-semibold text-white">{linkCount}</span>
-              <span className="text-xs text-zinc-500">links</span>
-            </div>
-            <p className="text-[11px] text-zinc-500 leading-relaxed mb-2.5">
-              Review the generated topology, then confirm it or request changes.
-            </p>
+        {/* Stats + actions */}
+        <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+          <div className="flex items-baseline gap-2.5">
+            <span className="text-lg font-semibold text-white/95">{nodeCount}</span>
+            <span className="text-[11.5px] text-zinc-500">devices</span>
+            <span className="text-zinc-700">·</span>
+            <span className="text-lg font-semibold text-white/95">{linkCount}</span>
+            <span className="text-[11.5px] text-zinc-500">links</span>
+          </div>
+          <button
+            onClick={() => setShowFull(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg text-zinc-300 hover:text-white text-[12.5px] font-medium px-3 py-1.5 transition-all flex-shrink-0"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <Maximize2 size={12} />
+            View full topology
+          </button>
+        </div>
+
+        {/* Confirm / Edit actions */}
+        {onAction && (
+          <div className="flex items-center gap-2 border-t px-4 py-3" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
             <button
-              onClick={() => setShowFull(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-xs font-medium px-3 py-1.5 transition-colors border border-zinc-600"
+              type="button"
+              onClick={() => onAction('confirm')}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-all"
+              style={{ background: 'linear-gradient(180deg, #10b981, #0d9668)' }}
             >
-              <Maximize2 size={12} />
-              View full topology
+              <CheckCircle2 size={14} />
+              Confirm topology
+            </button>
+            <button
+              type="button"
+              onClick={() => onAction('edit')}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white transition-all"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <Pencil size={14} />
+              Edit topology
             </button>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 border-t border-zinc-800 px-4 py-3">
-          <button
-            type="button"
-            onClick={() => onAction?.('confirm')}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-brand-500/20 transition-colors hover:bg-brand-400"
-          >
-            <CheckCircle2 size={14} />
-            Confirm topology
-          </button>
-          <button
-            type="button"
-            onClick={() => onAction?.('edit')}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-xs font-semibold text-zinc-200 transition-colors hover:border-brand-500/50 hover:bg-brand-950/50 hover:text-white"
-          >
-            <Pencil size={14} />
-            Edit topology
-          </button>
-        </div>
+        )}
       </div>
 
-      {/* Full-screen topology modal */}
       {showFull && (
         <TopologyFullCanvas topology={topology} onClose={() => setShowFull(false)} />
       )}
