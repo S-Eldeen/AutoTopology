@@ -19,9 +19,19 @@ export default function ChatLayout() {
 
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const fetchUsage = useAuthStore((s) => s.fetchUsage);
+  const usage = user?.usage;
+
+  const resetTime = usage?.resetAt
+    ? new Date(usage.resetAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null;
+  const usageTitle = usage
+    ? `${usage.used} used, ${usage.remaining} remaining${resetTime ? `. Resets at ${resetTime}` : ''}`
+    : undefined;
 
   useEffect(() => {
     loadSessions();
+    fetchUsage().catch(() => {});
     return () => reset();
   }, []); // eslint-disable-line
 
@@ -89,6 +99,18 @@ export default function ChatLayout() {
 
         {/* Floating buttons — top right: share + new chat */}
         <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5">
+          {usage && (
+            <div
+              className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] px-3 py-2 text-xs text-zinc-400"
+              style={{ background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(14px)' }}
+              title={usageTitle}
+            >
+              <span className="hidden sm:inline">Used designs</span>
+              <span className="font-semibold text-zinc-100">{usage.used}</span>
+              <span className="text-zinc-600">/</span>
+              <span className="text-zinc-300">{usage.limit}</span>
+            </div>
+          )}
           {activeSessionId && !showEmptyState && (
             <button
               onClick={() => activeSession && setShareTarget(activeSession)}

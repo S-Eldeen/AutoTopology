@@ -19,6 +19,12 @@ export default function ChatTopBar({ sidebarOpen, onToggleSidebar, activeSession
 
   const activeSession = sessions.find((s) => s._id === activeSessionId);
   const title = activeSession?.title || 'New Chat';
+  const resetTime = usage?.resetAt
+    ? new Date(usage.resetAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null;
+  const usageTitle = usage
+    ? `${usage.used} used, ${usage.remaining} remaining${resetTime ? `. Resets at ${resetTime}` : ''}`
+    : undefined;
 
   return (
     <header className="flex-shrink-0 h-14 flex items-center px-3 gap-2 border-b border-white/[0.06]"
@@ -46,9 +52,15 @@ export default function ChatTopBar({ sidebarOpen, onToggleSidebar, activeSession
           </button>
         )}
         {usage && (
-          <div className="hidden items-center rounded-lg border border-white/[0.06] px-3 py-1.5 text-xs text-zinc-400 sm:flex" style={{ background: 'rgba(255,255,255,0.03)' }}>
-            <span className="text-zinc-200">{usage.used} / {usage.limit}</span>
-            <span className="ml-1">designs</span>
+          <div
+            className="hidden items-center gap-1.5 rounded-lg border border-white/[0.06] px-3 py-1.5 text-xs text-zinc-400 sm:flex"
+            style={{ background: 'rgba(255,255,255,0.03)' }}
+            title={usageTitle}
+          >
+            <span>Used designs</span>
+            <span className="font-semibold text-zinc-100">{usage.used}</span>
+            <span className="text-zinc-600">/</span>
+            <span className="text-zinc-300">{usage.limit}</span>
           </div>
         )}
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.06]" style={{ background: 'rgba(255,255,255,0.03)' }}>
