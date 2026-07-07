@@ -591,8 +591,9 @@ function directToolIntro(toolName, args = {}) {
   return 'Working on that now.';
 }
 
-async function executeDirectTool(sessionId, userId, toolName, args) {
-  const intro = directToolIntro(toolName, args);
+async function executeDirectTool(sessionId, userId, toolName, args, introPrefix = '') {
+  const baseIntro = directToolIntro(toolName, args);
+  const intro = introPrefix ? `${introPrefix}\n\n${baseIntro}` : baseIntro;
   const assistantId = await appendAssistantMessage(sessionId, {
     role: 'assistant',
     content: intro,
@@ -898,17 +899,10 @@ export async function dispatch(sessionId, userId, userMessage) {
       }
     );
 
-    const continueMessage = `Security Profile set to ${profileLabel(selectedProfile)}. Continuing with the saved request.`;
-    await appendAssistantMessage(sessionId, {
-      role: 'assistant',
-      content: continueMessage,
-      createdAt: new Date(),
-    });
-    sseService.broadcast(sessionId, 'agent_message', { message: continueMessage });
-
     const pending = session.pendingSecurityProfileAction;
     if (pending?.type === 'tool') {
-      return executeDirectTool(sessionId, userId, pending.tool, pending.args || {});
+      const continueMessage = `Security Profile set to ${profileLabel(selectedProfile)}. Continuing with the saved request.`;
+      return executeDirectTool(sessionId, userId, pending.tool, pending.args || {}, continueMessage);
     }
     return { ok: true, rounds: 0 };
   }

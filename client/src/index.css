@@ -140,12 +140,14 @@
 
 /* Input focus glow — wraps the chat textarea */
 .glow-input-wrap {
-  transition: box-shadow .35s ease, border-color .35s ease;
+  transition: background-color .25s ease, box-shadow .25s ease, border-color .25s ease;
 }
 .glow-input-wrap:focus-within {
+  background: rgba(4, 120, 87, 0.14) !important;
+  border-color: rgba(52, 245, 174, 0.62) !important;
   box-shadow:
     0 12px 40px rgba(0,0,0,0.3),
-    0 0 0 1px rgba(16,185,129,0.25),
-    0 0 32px rgba(16,185,129,0.18),
-    0 0 64px rgba(16,185,129,0.08);
+    0 0 0 1px rgba(52,245,174,0.22),
+    0 0 30px rgba(16,185,129,0.34),
+    0 0 70px rgba(7,155,107,0.18) !important;
 }
