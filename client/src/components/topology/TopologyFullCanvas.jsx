@@ -496,7 +496,7 @@ export default function TopologyFullCanvas({ topology, onClose }) {
                   {/* icon chip (small circle with icon) */}
                   <circle cx={-NODE_W/2 + 22} cy={0} r={11}
                     fill={theme.nodeIconBg} />
-                  <foreignObject x={-NODE_W/2 + 11} y={-8} width={22} height={22} style={{ pointerEvents: 'none' }}>
+                  <foreignObject x={-NODE_W/2 + 11} y={-11} width={22} height={22} style={{ pointerEvents: 'none' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', color: theme.nodeIconColor }}>
                       <NodeIcon node={n} />
                     </div>
