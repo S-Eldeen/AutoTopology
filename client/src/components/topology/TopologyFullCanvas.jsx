@@ -363,7 +363,7 @@ export default function TopologyFullCanvas({ topology, onClose }) {
   }, [lightMode, name, pdfLoading, positions]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col animate-fade-in"
+    <div className="fixed inset-0 z-[1000] flex flex-col animate-fade-in"
       style={{ background: lightMode ? 'rgba(248,250,252,0.85)' : 'rgba(9,9,11,0.8)', backdropFilter: 'blur(12px)' }}>
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b backdrop-blur-xl"

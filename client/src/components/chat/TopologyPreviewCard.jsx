@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Network, Maximize2, Check, CheckCircle2, Pencil } from 'lucide-react';
 import TopologyFullCanvas from '../topology/TopologyFullCanvas.jsx';
 import { computeHierarchicalLayout, getNodeColor } from '../topology/topologyLayout.js';
@@ -144,8 +145,9 @@ export default function TopologyPreviewCard({ topology, onAction }) {
         )}
       </div>
 
-      {showFull && (
-        <TopologyFullCanvas topology={topology} onClose={() => setShowFull(false)} />
+      {showFull && createPortal(
+        <TopologyFullCanvas topology={topology} onClose={() => setShowFull(false)} />,
+        document.body
       )}
     </>
   );
