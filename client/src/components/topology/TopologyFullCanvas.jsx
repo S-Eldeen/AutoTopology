@@ -118,7 +118,7 @@ export default function TopologyFullCanvas({ topology, onClose }) {
   // Keyed by topologyId so each topology remembers its own layout.
   // When the user drags nodes, we save positions; on reopen, we restore them.
   const topoId = topology?.topologyId || topology?.topology_data?.name || 'default';
-  const STORAGE_KEY = `structuranet:topo-positions:v2-up:${topoId}`;
+  const STORAGE_KEY = `structuranet:topo-positions:v3-normal:${topoId}`;
 
   // Initialize positions: load from localStorage if present, else use layout
   useEffect(() => {
