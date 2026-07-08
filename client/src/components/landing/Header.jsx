@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { id: 'how-it-works', label: 'How it works' },
   { id: 'use-cases', label: 'Use cases' },
   { id: 'networks', label: 'Capabilities' },
+  { id: 'security-feature', label: 'Security' },
   { id: 'privacy-policy', label: 'Privacy & Policy' },
 ];
 

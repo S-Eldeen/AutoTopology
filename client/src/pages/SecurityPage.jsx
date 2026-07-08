@@ -310,7 +310,7 @@ const SecurityPage = () => {
             onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.09)";e.currentTarget.style.color="rgba(255,255,255,0.9)";e.currentTarget.style.borderColor="rgba(255,255,255,0.15)";}}
             onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.03)";e.currentTarget.style.color="rgba(255,255,255,0.55)";e.currentTarget.style.borderColor="rgba(255,255,255,0.07)";}}
           >
-            <BackIcon/> <span>Dashboard</span>
+            <BackIcon/> <span>Chat</span>
           </button>
           <div style={{width:1,height:22,background:"rgba(255,255,255,0.07)"}}/>
           <div style={{display:"flex",alignItems:"center",gap:8,color:"#4f8ef7"}}>
@@ -329,7 +329,7 @@ const SecurityPage = () => {
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,letterSpacing:"1px",color:"rgba(255,255,255,0.38)",whiteSpace:"nowrap"}}>TARGET FILE</span>
           <div onClick={()=>fileRef.current?.click()} style={{display:"flex",alignItems:"center",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:7,padding:"7px 14px",fontFamily:"'JetBrains Mono',monospace",fontSize:12,minWidth:260,cursor:"pointer"}}>
-            <span style={{color:filename?"rgba(255,255,255,0.85)":"rgba(255,255,255,0.3)"}}>{filename||"Click Browse to select a JSON file…"}</span>
+            <span style={{color:filename?"rgba(255,255,255,0.85)":"rgba(255,255,255,0.3)"}}>{filename||"Upload a topology JSON file to scan its security posture..."}</span>
           </div>
           <input ref={fileRef} type="file" accept=".json" style={{display:"none"}} onChange={handleFile}/>
           <button style={S.btn(false)} onClick={()=>fileRef.current?.click()}><UploadIcon/> Browse</button>
@@ -352,7 +352,7 @@ const SecurityPage = () => {
 
       {/* ── STATUS BAR ── */}
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"5px 20px",background:"#14141e",borderBottom:"1px solid rgba(255,255,255,0.07)",fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:"rgba(255,255,255,0.38)",flexShrink:0,flexWrap:"wrap"}}>
-        {phase==="idle"&&<span>Ready — select a network topology JSON file to begin OSI L1→L7 analysis</span>}
+        {phase==="idle"&&<span>Ready - upload a topology JSON file to check risks, weak settings, and Cisco IOS fixes</span>}
         {phase==="running"&&<span style={{color:"#f5c842",animation:"blink 1s infinite"}}>● Analysing… {Math.round(progress)}%</span>}
         {phase==="done"&&report&&(<>
           <span style={{color:"#22d3a5",fontWeight:600}}>Analysis complete</span>
@@ -374,11 +374,29 @@ const SecurityPage = () => {
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:10,textAlign:"center"}}>
             <div style={{display:"flex",alignItems:"center",gap:10,color:"#4f8ef7"}}>
               <ShieldIcon/>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,fontSize:18,letterSpacing:1.5,color:"#e0eeff"}}>Network Security Analyzer</span>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:700,fontSize:18,letterSpacing:1.5,color:"#e0eeff"}}>Topology Security Analyzer</span>
             </div>
-            <p style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:"rgba(255,255,255,0.28)",letterSpacing:"0.8px",margin:0}}>
-              16 CHECKS &nbsp;·&nbsp; OSI L1 → L7 &nbsp;·&nbsp; CISCO IOS REMEDIATION
+            <p style={{maxWidth:720,fontSize:13,color:"rgba(255,255,255,0.58)",lineHeight:1.65,margin:"2px 0 0"}}>
+              Upload a generated topology JSON and StructuraNet will inspect it for security gaps,
+              score the design, highlight risky devices or links, and suggest practical Cisco IOS
+              commands to harden the network before deployment.
             </p>
+            <p style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:"rgba(255,255,255,0.32)",letterSpacing:"0.8px",margin:0}}>
+              ACLS - VLAN SEGMENTATION - FIREWALL ZONES - AAA - SSH/TLS - LOGGING - OSI L1 TO L7
+            </p>
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:10,width:"100%",maxWidth:760}}>
+            {[
+              ["Find weak points","Detect missing ACLs, insecure protocols, flat networks, weak management, and missing logging."],
+              ["Explain the risk","Each finding shows severity, affected category, and why it matters for the topology."],
+              ["Give fixes","Open Cisco Commands to copy remediation steps for routers, switches, firewalls, and services."],
+            ].map(([title, desc])=>(
+              <div key={title} style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(34,211,165,0.13)",borderRadius:10,padding:"12px 14px",textAlign:"left"}}>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,letterSpacing:"1px",color:"#22d3a5",marginBottom:6}}>{title.toUpperCase()}</div>
+                <div style={{fontSize:12,color:"rgba(255,255,255,0.52)",lineHeight:1.55}}>{desc}</div>
+              </div>
+            ))}
           </div>
 
           {/* ── OSI Infographic ── */}
@@ -404,7 +422,7 @@ const SecurityPage = () => {
             style={{...S.btn(true), padding:"10px 28px", fontSize:14}}
             onClick={()=>fileRef.current?.click()}
           >
-            <UploadIcon/> Browse JSON File to Start
+            <UploadIcon/> Upload Topology JSON
           </button>
         </div>
       )}

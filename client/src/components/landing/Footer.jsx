@@ -12,6 +12,7 @@ const COLUMNS = [
       { label: 'Use cases', href: '#use-cases' },
       { label: 'Supported devices', href: '#catalog' },
       { label: 'Capabilities', href: '#networks' },
+      { label: 'Security analyzer', href: '#security-feature' },
     ],
   },
   {
