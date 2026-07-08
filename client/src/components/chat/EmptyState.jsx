@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowUp, Mic, AudioLines } from 'lucide-react';
 import ActionChipsBar from './ActionChipsBar.jsx';
-import { useChatStore } from '../../stores/chatStore.js';
+import { isDesignPrompt, useChatStore } from '../../stores/chatStore.js';
+import { useAuthStore } from '../../stores/authStore.js';
 import { useAutoResizeTextarea } from '../../hooks/useAutoResizeTextarea.js';
 import { useVoiceInput } from '../../hooks/useVoiceInput.js';
 
 export default function EmptyState() {
   const [text, setText] = useState('');
   const inputRef = useAutoResizeTextarea(text);
-  const { sendMessage, createSession, activeSessionId, error } = useChatStore();
+  const { sendMessage, createSession, activeSessionId, error, openDesignLimitModal } = useChatStore();
+  const usage = useAuthStore((s) => s.user?.usage);
   const {
     isListening,
     isVoiceSupported,
@@ -18,6 +20,10 @@ export default function EmptyState() {
 
   const handleSend = async () => {
     if (!text.trim()) return;
+    if (isDesignBlocked) {
+      openDesignLimitModal(usage);
+      return;
+    }
     let sessionId = activeSessionId;
     if (!sessionId) sessionId = await createSession();
     await sendMessage(text.trim());
@@ -32,6 +38,12 @@ export default function EmptyState() {
     setText(prompt);
     document.querySelector('[data-chat-input]')?.focus();
   };
+
+  const isDesignBlocked = !!usage && usage.remaining <= 0 && isDesignPrompt(text);
+
+  useEffect(() => {
+    if (isDesignBlocked) openDesignLimitModal(usage);
+  }, [isDesignBlocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="h-full flex flex-col items-center justify-center px-6 relative">
@@ -106,10 +118,11 @@ export default function EmptyState() {
           )}
           <button
             onClick={handleSend}
-            disabled={!text.trim()}
+            disabled={!text.trim() || isDesignBlocked}
             className="flex-shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full text-white disabled:bg-white/10 disabled:text-zinc-500 disabled:cursor-not-allowed transition-colors"
-            style={text.trim() ? { background: 'linear-gradient(180deg, #10b981, #0d9668)' } : undefined}
+            style={text.trim() && !isDesignBlocked ? { background: 'linear-gradient(180deg, #10b981, #0d9668)' } : undefined}
             aria-label="Send message"
+            title={isDesignBlocked ? 'Daily design limit reached' : 'Send message'}
           >
             <ArrowUp size={16} />
           </button>

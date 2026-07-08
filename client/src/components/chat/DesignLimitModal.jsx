@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Clock, X } from 'lucide-react';
+import { useAuthStore } from '../../stores/authStore.js';
 
 function formatDuration(ms) {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -13,16 +14,24 @@ function formatDuration(ms) {
 }
 
 export default function DesignLimitModal({ usage, onClose }) {
+  const fetchUsage = useAuthStore((s) => s.fetchUsage);
   const resetDate = useMemo(() => {
     const date = usage?.resetAt ? new Date(usage.resetAt) : null;
     return date && !Number.isNaN(date.getTime()) ? date : null;
   }, [usage?.resetAt]);
   const [now, setNow] = useState(Date.now());
+  const [refreshed, setRefreshed] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!resetDate || refreshed || resetDate.getTime() > now) return;
+    setRefreshed(true);
+    fetchUsage().finally(() => onClose?.());
+  }, [fetchUsage, now, onClose, refreshed, resetDate]);
 
   if (!usage) return null;
 

@@ -2,7 +2,8 @@ import { ArrowUp, Square, Copy, Check, Mic, AudioLines } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useChatStore } from '../../stores/chatStore.js';
+import { isDesignPrompt, useChatStore } from '../../stores/chatStore.js';
+import { useAuthStore } from '../../stores/authStore.js';
 import { useAutoResizeTextarea } from '../../hooks/useAutoResizeTextarea.js';
 import { useVoiceInput } from '../../hooks/useVoiceInput.js';
 import ActionTrace from './ActionTrace.jsx';
@@ -23,8 +24,9 @@ import TopologyPreviewCard from './TopologyPreviewCard.jsx';
 export default function ConversationView() {
   const {
     activeSessionId, messages, streamingText, isStreaming, activeTool, error,
-    sendMessage, stopStreaming,
+    sendMessage, stopStreaming, openDesignLimitModal,
   } = useChatStore();
+  const usage = useAuthStore((s) => s.user?.usage);
 
   const [text, setText] = useState('');
   const scrollRef = useRef(null);
@@ -37,6 +39,7 @@ export default function ConversationView() {
   } = useVoiceInput({ text, setText });
 
   const activeMessages = activeSessionId ? (messages[activeSessionId] || []) : [];
+  const isDesignBlocked = !!usage && usage.remaining <= 0 && isDesignPrompt(text);
 
   // ── Auto-scroll to bottom on new content ────────────────
   useEffect(() => {
@@ -45,8 +48,16 @@ export default function ConversationView() {
     }
   }, [activeMessages, streamingText, activeTool]);
 
+  useEffect(() => {
+    if (isDesignBlocked) openDesignLimitModal(usage);
+  }, [isDesignBlocked]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSend = async () => {
     if (!text.trim() || isStreaming) return;
+    if (isDesignBlocked) {
+      openDesignLimitModal(usage);
+      return;
+    }
     await sendMessage(text.trim());
     setText('');
   };
@@ -171,15 +182,15 @@ export default function ConversationView() {
             )}
             <button
               onClick={isStreaming ? stopStreaming : handleSend}
-              disabled={!isStreaming && !text.trim()}
+              disabled={!isStreaming && (!text.trim() || isDesignBlocked)}
               className={`flex-shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full transition-all ${
                 isStreaming
                   ? 'bg-white text-zinc-900 hover:bg-zinc-200'
                   : 'text-white disabled:bg-white/10 disabled:text-zinc-500 disabled:cursor-not-allowed'
               }`}
-              style={!isStreaming && text.trim() ? { background: 'linear-gradient(180deg, #10b981, #0d9668)' } : undefined}
+              style={!isStreaming && text.trim() && !isDesignBlocked ? { background: 'linear-gradient(180deg, #10b981, #0d9668)' } : undefined}
               aria-label={isStreaming ? 'Stop generating' : 'Send message'}
-              title={isStreaming ? 'Stop generating' : 'Send message'}
+              title={isDesignBlocked ? 'Daily design limit reached' : isStreaming ? 'Stop generating' : 'Send message'}
             >
               {isStreaming ? <Square size={13} fill="currentColor" /> : <ArrowUp size={16} />}
             </button>
