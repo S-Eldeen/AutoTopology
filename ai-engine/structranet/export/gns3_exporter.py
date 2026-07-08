@@ -81,7 +81,7 @@ import sys
 import uuid
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from structranet.constants.gns3 import (
     CONSOLE_TYPE,

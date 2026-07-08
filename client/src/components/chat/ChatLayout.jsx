@@ -144,7 +144,7 @@ export default function ChatLayout() {
 
         {/* Content fills the entire screen */}
         <div className="flex-1 overflow-hidden">
-          {showEmptyState ? <EmptyState onNewChat={handleNewChat} /> : <ConversationView />}
+          {showEmptyState ? <EmptyState /> : <ConversationView />}
         </div>
       </div>
 

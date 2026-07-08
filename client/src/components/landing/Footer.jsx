@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import BrandWordmark from '../common/BrandWordmark.jsx';
 
 /**
  * Footer — 3-column dark footer with brand block, product, and company.
@@ -35,18 +36,7 @@ export default function Footer() {
           {/* Brand block */}
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="flex items-center gap-2 mb-3">
-              <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-md shadow-brand-500/30">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="6" cy="6" r="2" />
-                  <circle cx="18" cy="6" r="2" />
-                  <circle cx="6" cy="18" r="2" />
-                  <circle cx="18" cy="18" r="2" />
-                  <path d="M8 6h8M6 8v8M18 8v8M8 18h8" />
-                </svg>
-              </span>
-              <span className="font-semibold text-white text-base tracking-tight">
-                StructuraNet <span className="text-brand-400">AI</span>
-              </span>
+              <BrandWordmark />
             </Link>
             <p className="text-sm text-navy-400 leading-relaxed mb-4">
               AI-powered network topology generation. Describe it. Review it. Run it.

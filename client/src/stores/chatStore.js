@@ -82,20 +82,32 @@ function finishToolTrace(trace, result) {
   };
 }
 
-function attachTraceToLastAssistant(messages, sessionId, trace, toolSummary) {
-  const msgs = messages[sessionId] ? [...messages[sessionId]] : [];
-  for (let i = msgs.length - 1; i >= 0; i--) {
-    if (msgs[i].role === 'assistant') {
-      msgs[i] = {
-        ...msgs[i],
-        tool: trace?.tool || msgs[i].tool,
-        toolSummary: toolSummary || msgs[i].toolSummary,
-        toolTrace: trace,
-      };
-      return { ...messages, [sessionId]: msgs };
+/**
+ * Return a copy of `list` where the last assistant message (optionally
+ * narrowed by `match`) is merged with `patch`. `patch` may be an object or
+ * a function of the matched message. Returns `list` unchanged if no
+ * assistant message matches.
+ */
+function patchLastAssistant(list, patch, match = () => true) {
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].role === 'assistant' && match(list[i])) {
+      const updated = [...list];
+      updated[i] = { ...list[i], ...(typeof patch === 'function' ? patch(list[i]) : patch) };
+      return updated;
     }
   }
-  return messages;
+  return list;
+}
+
+/** Return a new messages map with `message` appended to a session. */
+function appendMessage(messages, sessionId, message) {
+  return {
+    ...messages,
+    [sessionId]: [
+      ...(messages[sessionId] || []),
+      { createdAt: new Date().toISOString(), ...message },
+    ],
+  };
 }
 
 export const useChatStore = create((set, get) => ({
@@ -157,7 +169,7 @@ export const useChatStore = create((set, get) => ({
       // Attach the loaded topology to the last assistant message that
       // produced it (generate/edit_topology), so it renders inline in the
       // correct chronological position — not floating at the bottom.
-      const loadedMessages = session.messages || [];
+      let loadedMessages = session.messages || [];
       if (topology) {
         const topoData = {
           topologyId: topology._id,
@@ -167,13 +179,11 @@ export const useChatStore = create((set, get) => ({
           nodeCount: topology.nodeCount,
           linkCount: topology.linkCount,
         };
-        for (let i = loadedMessages.length - 1; i >= 0; i--) {
-          if (loadedMessages[i].role === 'assistant' &&
-              (loadedMessages[i].tool === 'generate_topology' || loadedMessages[i].tool === 'edit_topology')) {
-            loadedMessages[i] = { ...loadedMessages[i], topology: topoData };
-            break;
-          }
-        }
+        loadedMessages = patchLastAssistant(
+          loadedMessages,
+          { topology: topoData },
+          (m) => m.tool === 'generate_topology' || m.tool === 'edit_topology'
+        );
       }
       // Reconstruct the exportKit from the loaded export job and attach it
       // to the last assistant message — so the download buttons persist
@@ -199,12 +209,7 @@ export const useChatStore = create((set, get) => ({
           validation: exportJob.validation,
           deviceConfigs: deviceNames,
         };
-        for (let i = loadedMessages.length - 1; i >= 0; i--) {
-          if (loadedMessages[i].role === 'assistant') {
-            loadedMessages[i] = { ...loadedMessages[i], exportKit: exportKitData };
-            break;
-          }
-        }
+        loadedMessages = patchLastAssistant(loadedMessages, { exportKit: exportKitData });
       }
       set((s) => ({
         messages: { ...s.messages, [sessionId]: loadedMessages },
@@ -338,10 +343,7 @@ export const useChatStore = create((set, get) => ({
 
     // Append user message locally
     set((s) => ({
-      messages: {
-        ...s.messages,
-        [sessionId]: [...(s.messages[sessionId] || []), { role: 'user', content, createdAt: new Date().toISOString() }],
-      },
+      messages: appendMessage(s.messages, sessionId, { role: 'user', content }),
       streamingText: '',
       isStreaming: true,
       streamingSessionId: sessionId,
@@ -387,14 +389,10 @@ export const useChatStore = create((set, get) => ({
       const text = get().streamingText;
       set((s) => ({
         streamingText: '',
-        messages: {
-          ...s.messages,
-          [sessionId]: [...(s.messages[sessionId] || []), {
-            role: 'assistant',
-            content: text + '\n\n_(stopped by user)_',
-            createdAt: new Date().toISOString(),
-          }],
-        },
+        messages: appendMessage(s.messages, sessionId, {
+          role: 'assistant',
+          content: text + '\n\n_(stopped by user)_',
+        }),
       }));
     }
     set({ isStreaming: false, streamingSessionId: null, activeTool: null });
@@ -454,45 +452,41 @@ export const useChatStore = create((set, get) => ({
           const text = get().streamingText;
           set((s) => ({
             streamingText: '',
-            messages: {
-              ...s.messages,
-              [sessionId]: [...(s.messages[sessionId] || []), {
-                role: 'assistant',
-                content: text,
-                tool: data.tool,
-                toolSummary: data.summary,
-                toolTrace: finishedTrace,
-                topology: pendingTopo,
-                createdAt: new Date().toISOString(),
-              }],
-            },
+            messages: appendMessage(s.messages, sessionId, {
+              role: 'assistant',
+              content: text,
+              tool: data.tool,
+              toolSummary: data.summary,
+              toolTrace: finishedTrace,
+              topology: pendingTopo,
+            }),
             topology: pendingTopo ? null : s.topology,
           }));
         } else if (pendingTopo) {
           // Case (b): agent_message already saved the text — attach topology
           // to the last assistant message in the array.
-          set((s) => {
-            const msgs = s.messages[sessionId] ? [...s.messages[sessionId]] : [];
-            for (let i = msgs.length - 1; i >= 0; i--) {
-              if (msgs[i].role === 'assistant') {
-                msgs[i] = {
-                  ...msgs[i],
-                  tool: data.tool,
-                  toolSummary: data.summary,
-                  toolTrace: finishedTrace,
-                  topology: pendingTopo,
-                };
-                break;
-              }
-            }
-            return {
-              messages: { ...s.messages, [sessionId]: msgs },
-              topology: null,
-            };
-          });
+          set((s) => ({
+            messages: {
+              ...s.messages,
+              [sessionId]: patchLastAssistant(s.messages[sessionId] || [], {
+                tool: data.tool,
+                toolSummary: data.summary,
+                toolTrace: finishedTrace,
+                topology: pendingTopo,
+              }),
+            },
+            topology: null,
+          }));
         } else if (finishedTrace) {
           set((s) => ({
-            messages: attachTraceToLastAssistant(s.messages, sessionId, finishedTrace, data.summary),
+            messages: {
+              ...s.messages,
+              [sessionId]: patchLastAssistant(s.messages[sessionId] || [], (m) => ({
+                tool: finishedTrace.tool || m.tool,
+                toolSummary: data.summary || m.toolSummary,
+                toolTrace: finishedTrace,
+              })),
+            },
           }));
         }
         break;
@@ -516,20 +510,13 @@ export const useChatStore = create((set, get) => ({
         // conversation. This keeps the download buttons anchored to the
         // assistant message that produced them, even when the user sends
         // more messages afterward.
-        set((s) => {
-          const msgs = s.messages[sessionId] ? [...s.messages[sessionId]] : [];
-          // Find the last assistant message (the one that triggered the export)
-          for (let i = msgs.length - 1; i >= 0; i--) {
-            if (msgs[i].role === 'assistant') {
-              msgs[i] = { ...msgs[i], exportKit: data };
-              break;
-            }
-          }
-          return {
-            messages: { ...s.messages, [sessionId]: msgs },
-            exportKit: null,  // clear floating state — it's now on the message
-          };
-        });
+        set((s) => ({
+          messages: {
+            ...s.messages,
+            [sessionId]: patchLastAssistant(s.messages[sessionId] || [], { exportKit: data }),
+          },
+          exportKit: null,  // clear floating state — it's now on the message
+        }));
         break;
 
       case 'usage_update':
@@ -542,14 +529,7 @@ export const useChatStore = create((set, get) => ({
       case 'agent_message':
         // Final message replaces streaming text
         set((s) => ({
-          messages: {
-            ...s.messages,
-            [sessionId]: [...(s.messages[sessionId] || []), {
-              role: 'assistant',
-              content: data.message,
-              createdAt: new Date().toISOString(),
-            }],
-          },
+          messages: appendMessage(s.messages, sessionId, { role: 'assistant', content: data.message }),
           streamingText: '',
         }));
         // Reload sessions to pick up auto-title
@@ -563,14 +543,7 @@ export const useChatStore = create((set, get) => ({
           const text = get().streamingText;
           set((s) => ({
             streamingText: '',
-            messages: {
-              ...s.messages,
-              [sessionId]: [...(s.messages[sessionId] || []), {
-                role: 'assistant',
-                content: text,
-                createdAt: new Date().toISOString(),
-              }],
-            },
+            messages: appendMessage(s.messages, sessionId, { role: 'assistant', content: text }),
           }));
         }
         break;

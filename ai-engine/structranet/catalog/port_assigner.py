@@ -25,18 +25,17 @@ module port counts) are imported from hw_config.py — the single source of trut
 """
 
 import logging
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Tuple
 
 from structranet.catalog.hw_config import (
     DYNAMIPS_BUILTIN_PORTS,
-    DYNAMIPS_MODULE_INTERFACES,
     DYNAMIPS_SERIAL_MODULES,
     DYNAMIPS_SERIAL_FALLBACK,
     IOU_DEFAULT_ETH_ADAPTERS,
     IOU_PORTS_PER_ADAPTER,
 )
-from structranet.constants.schema import Connection, Link, LinkNode, NodeRequest, TopologyRequest
+from structranet.constants.schema import Link, LinkNode, NodeRequest, TopologyRequest
 
 logger = logging.getLogger("structranet.port_assigner")
 

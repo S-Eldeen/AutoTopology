@@ -59,7 +59,6 @@ import logging
 import os
 import sys
 import tempfile
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # ─── Ensure ai-engine root is on sys.path so `structranet` is importable ─────
@@ -1216,10 +1215,7 @@ def cmd_catalog(args: argparse.Namespace) -> None:
       - requires_image: bool — whether this device needs a user-supplied image
     """
     from structranet.constants.appliances import APPLIANCE_CATALOG  # noqa: PLC0415
-    from structranet.constants.gns3 import (  # noqa: PLC0415
-        BUILTIN_NODE_TYPES,
-        APPLIANCE_NODE_TYPES,
-    )
+    from structranet.constants.gns3 import APPLIANCE_NODE_TYPES  # noqa: PLC0415
 
     # ── Category mapping by node_type ─────────────────────────────────────
     # Built-in nodes (switches, hubs, VPCS, cloud, NAT) don't need images.

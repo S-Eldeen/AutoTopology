@@ -6,7 +6,7 @@ import { Router } from 'express';
 import OpenAI from 'openai';
 import config from '../config/index.js';
 import { requireAuth } from '../middleware/auth.js';
-import { AppError } from '../utils/errors.js';
+import { AppError, asyncHandler } from '../utils/errors.js';
 
 const router = Router();
 
@@ -82,9 +82,11 @@ async function transcribeWithOpenRouter(buffer, contentType) {
 router.post(
   '/transcribe',
   requireAuth,
-  async (req, res, next) => {
+  asyncHandler(async (req, res) => {
     let filePath = null;
 
+    // try/finally (no catch): asyncHandler forwards errors, the finally
+    // block guarantees the temp audio file is removed either way.
     try {
       if (!config.speech.apiKey) {
         throw new AppError('Voice transcription needs SPEECH_API_KEY, ROUTER_API_KEY, or OPENAI_API_KEY in backend/.env', 503, 'VOICE_NOT_CONFIGURED');
@@ -113,14 +115,12 @@ router.post(
       });
 
       res.json({ text: transcription.text || '' });
-    } catch (err) {
-      next(err);
     } finally {
       if (filePath) {
         fs.promises.unlink(filePath).catch(() => {});
       }
     }
-  }
+  })
 );
 
 export default router;

@@ -8,7 +8,6 @@ This module is the SINGLE SOURCE OF TRUTH for OpenAI client initialization,
 transient-error retry logic, and LLM JSON extraction across the entire pipeline.
 """
 
-import json
 import logging
 import os
 import random

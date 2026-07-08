@@ -15,7 +15,7 @@
 import { Router } from 'express';
 import { ExportJob } from '../models/Export.js';
 import { requireAuth, sseAuth } from '../middleware/auth.js';
-import { NotFoundError, ForbiddenError } from '../utils/errors.js';
+import { NotFoundError, ForbiddenError, asyncHandler } from '../utils/errors.js';
 import path from 'path';
 import fs from 'fs';
 import archiver from 'archiver';
@@ -23,23 +23,26 @@ import logger from '../utils/logger.js';
 
 const router = Router();
 
+async function findOwnedExport(exportId, userId) {
+  const job = await ExportJob.findById(exportId);
+  if (!job) throw new NotFoundError('Export job not found');
+  if (job.userId.toString() !== userId.toString()) {
+    throw new ForbiddenError('Not your export');
+  }
+  return job;
+}
+
 // ── GET /api/export/:id/status ─────────────────────────────
 // Called via Axios (with Authorization header) — uses requireAuth.
-router.get('/:id/status', requireAuth, async (req, res, next) => {
-  try {
-    const job = await ExportJob.findById(req.params.id);
-    if (!job) throw new NotFoundError('Export job not found');
-    if (job.userId.toString() !== req.user._id.toString()) {
-      throw new ForbiddenError('Not your export');
-    }
-    res.json({
-      status: job.status,
-      files: job.files,
-      validation: job.validation,
-      error: job.error,
-    });
-  } catch (err) { next(err); }
-});
+router.get('/:id/status', requireAuth, asyncHandler(async (req, res) => {
+  const job = await findOwnedExport(req.params.id, req.user._id);
+  res.json({
+    status: job.status,
+    files: job.files,
+    validation: job.validation,
+    error: job.error,
+  });
+}));
 
 // ── GET /api/export/:id/download/:file ─────────────────────
 // file: 'gns3project' | 'configs' | 'manifest'
@@ -53,65 +56,59 @@ router.get('/:id/status', requireAuth, async (req, res, next) => {
 // which cannot set Authorization headers. So it uses `sseAuth` (accepts
 // ?token= query param) instead of `requireAuth` (header only). The frontend
 // builds the URL with ?token=<jwt> in services/endpoints.js → exportApi.downloadUrl.
-router.get('/:id/download/:file', sseAuth, async (req, res, next) => {
-  try {
-    const job = await ExportJob.findById(req.params.id);
-    if (!job) throw new NotFoundError('Export job not found');
-    if (job.userId.toString() !== req.user._id.toString()) {
-      throw new ForbiddenError('Not your export');
-    }
-    if (job.status !== 'complete') {
-      throw new NotFoundError('Export not ready');
-    }
+router.get('/:id/download/:file', sseAuth, asyncHandler(async (req, res) => {
+  const job = await findOwnedExport(req.params.id, req.user._id);
+  if (job.status !== 'complete') {
+    throw new NotFoundError('Export not ready');
+  }
 
-    const fileType = req.params.file;
+  const fileType = req.params.file;
 
-    // ── gns3project: single file download ──────────────────
-    // .gns3project is a ZIP archive (GNS3 portable project format).
-    // Set explicit Content-Type + Content-Disposition so the browser
-    // downloads with the correct .gns3project extension (not .json or .zip).
-    if (fileType === 'gns3project') {
-      const p = job.files.gns3Project;
-      if (!p || !fs.existsSync(p)) throw new NotFoundError('GNS3 project file not found');
-      const fname = path.basename(p);
-      res.setHeader('Content-Type', 'application/gns3project');
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fname)}"`);
-      return res.sendFile(path.resolve(p));
-    }
+  // ── gns3project: single file download ──────────────────
+  // .gns3project is a ZIP archive (GNS3 portable project format).
+  // Set explicit Content-Type + Content-Disposition so the browser
+  // downloads with the correct .gns3project extension (not .json or .zip).
+  if (fileType === 'gns3project') {
+    const p = job.files.gns3Project;
+    if (!p || !fs.existsSync(p)) throw new NotFoundError('GNS3 project file not found');
+    const fname = path.basename(p);
+    res.setHeader('Content-Type', 'application/gns3project');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fname)}"`);
+    return res.sendFile(path.resolve(p));
+  }
 
-    // ── configs: zip the configs_review directory on the fly ──
-    // Uses archiver (no shell spawn) — closes the command-injection
-    // vulnerability that existed with `exec("zip -r ...")`.
-    if (fileType === 'configs') {
-      const dir = job.files.configsZip;
-      if (!dir || !fs.existsSync(dir)) throw new NotFoundError('Configs directory not found');
+  // ── configs: zip the configs_review directory on the fly ──
+  // Uses archiver (no shell spawn) — closes the command-injection
+  // vulnerability that existed with `exec("zip -r ...")`.
+  if (fileType === 'configs') {
+    const dir = job.files.configsZip;
+    if (!dir || !fs.existsSync(dir)) throw new NotFoundError('Configs directory not found');
 
-      res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Disposition', 'attachment; filename="configs.zip"');
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="configs.zip"');
 
-      const archive = archiver('zip', { zlib: { level: 6 } });
-      archive.on('error', (err) => {
-        logger.error('archiver error (configs.zip):', err);
-        // Headers already sent — can only end the response
-        res.end();
-      });
-      archive.pipe(res);
-      archive.directory(dir, false);
-      archive.finalize();
-      return;
-    }
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    archive.on('error', (err) => {
+      logger.error('archiver error (configs.zip):', err);
+      // Headers already sent — can only end the response
+      res.end();
+    });
+    archive.pipe(res);
+    archive.directory(dir, false);
+    archive.finalize();
+    return;
+  }
 
-    // ── manifest: the image-requirements checklist ─────────
-    if (fileType === 'manifest') {
-      const p = job.files.manifest;
-      if (!p || !fs.existsSync(p)) throw new NotFoundError('Manifest file not found');
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.setHeader('Content-Disposition', 'attachment; filename="requirements.txt"');
-      return res.sendFile(path.resolve(p));
-    }
+  // ── manifest: the image-requirements checklist ─────────
+  if (fileType === 'manifest') {
+    const p = job.files.manifest;
+    if (!p || !fs.existsSync(p)) throw new NotFoundError('Manifest file not found');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="requirements.txt"');
+    return res.sendFile(path.resolve(p));
+  }
 
-    throw new NotFoundError('Unknown file type');
-  } catch (err) { next(err); }
-});
+  throw new NotFoundError('Unknown file type');
+}));
 
 export default router;

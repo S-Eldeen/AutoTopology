@@ -26,6 +26,7 @@ export const config = {
 
   mongo: {
     uri: process.env.MONGO,
+    serverSelectionTimeoutMS: parseInt(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS || '15000', 10),
     dnsServers: (process.env.MONGO_DNS_SERVERS || '')
       .split(',')
       .map(server => server.trim())
@@ -56,8 +57,8 @@ export const config = {
 
   aiEngine: {
     pythonBin: process.env.PYTHON_BIN || 'python',
-    wrapperPath: process.env.WRAPER_PATH
-      ? path.resolve(__dirname, '../../', process.env.WRAPER_PATH)
+    wrapperPath: process.env.WRAPPER_PATH || process.env.WRAPER_PATH
+      ? path.resolve(__dirname, '../../', process.env.WRAPPER_PATH || process.env.WRAPER_PATH)
       : path.resolve(__dirname, '../../../ai-engine/wrapper.py'),
     outputDir: process.env.OUTPUT_DIR || './output',
     defaultTimeout: 300_000,      // 5 min for generate/edit

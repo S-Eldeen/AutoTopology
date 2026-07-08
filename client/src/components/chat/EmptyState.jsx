@@ -9,7 +9,7 @@ import { useVoiceInput } from '../../hooks/useVoiceInput.js';
 export default function EmptyState() {
   const [text, setText] = useState('');
   const inputRef = useAutoResizeTextarea(text);
-  const { sendMessage, createSession, activeSessionId, error, openDesignLimitModal } = useChatStore();
+  const { sendMessage, error, openDesignLimitModal } = useChatStore();
   const usage = useAuthStore((s) => s.user?.usage);
   const {
     isListening,
@@ -24,8 +24,7 @@ export default function EmptyState() {
       openDesignLimitModal(usage);
       return;
     }
-    let sessionId = activeSessionId;
-    if (!sessionId) sessionId = await createSession();
+    // sendMessage creates the session lazily on the first message.
     await sendMessage(text.trim());
     setText('');
   };

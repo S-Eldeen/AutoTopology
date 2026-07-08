@@ -33,7 +33,7 @@ Key corrections vs previous version:
   - PLATFORMS_DEFAULT_RAM / PLATFORMS_DEFAULT_NVRAM added from GNS3 source.
 """
 
-from typing import Any, Dict, FrozenSet, List, Tuple
+from typing import Any, Dict, FrozenSet, Tuple
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

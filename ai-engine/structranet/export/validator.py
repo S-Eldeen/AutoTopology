@@ -32,10 +32,9 @@ import re
 import sys
 import zipfile
 from collections import Counter
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
-from structranet.constants.hardware import DYNAMIPS_COMPAT, MODULE_PORT_COUNT
+from structranet.constants.hardware import DYNAMIPS_COMPAT
 from structranet.constants.gns3 import VALID_NODE_TYPES, BUILTIN_NODE_TYPES, APPLIANCE_NODE_TYPES
 
 # ── Severity levels ──────────────────────────────────────────────────────────────
