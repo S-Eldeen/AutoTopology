@@ -6,6 +6,7 @@ import Sidebar from './Sidebar.jsx';
 import EmptyState from './EmptyState.jsx';
 import ConversationView from './ConversationView.jsx';
 import ShareChatDialog from './ShareChatDialog.jsx';
+import DesignLimitModal from './DesignLimitModal.jsx';
 
 export default function ChatLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -14,7 +15,7 @@ export default function ChatLayout() {
   const {
     sessions, activeSessionId, messages, isStreaming, streamingSessionId,
     loadSessions, createSession, selectSession, deleteSession,
-    renameSession, toggleStarSession, reset,
+    renameSession, toggleStarSession, reset, designLimitModal, closeDesignLimitModal,
   } = useChatStore();
 
   const user = useAuthStore((s) => s.user);
@@ -142,6 +143,10 @@ export default function ChatLayout() {
           session={sessions.find((s) => s._id === shareTarget._id) || shareTarget}
           onClose={() => setShareTarget(null)}
         />
+      )}
+
+      {designLimitModal && (
+        <DesignLimitModal usage={designLimitModal} onClose={closeDesignLimitModal} />
       )}
     </div>
   );

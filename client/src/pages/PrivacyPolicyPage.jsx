@@ -79,7 +79,7 @@ const SECTIONS = [
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-[#020706] text-white">
-      <Header />
+      <Header showNav={false} />
       <main className="pt-28 pb-16">
         <section className="max-w-4xl mx-auto px-6">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-400">Privacy Policy</p>

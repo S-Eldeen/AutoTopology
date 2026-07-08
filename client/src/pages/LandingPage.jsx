@@ -5,6 +5,7 @@ import HowItWorks from '../components/landing/HowItWorks.jsx';
 import UseCases from '../components/landing/UseCases.jsx';
 import SupportedNetworks from '../components/landing/SupportedNetworks.jsx';
 import Vision from '../components/landing/Vision.jsx';
+import PrivacyPolicySection from '../components/landing/PrivacyPolicySection.jsx';
 import FinalCTA from '../components/landing/FinalCTA.jsx';
 import Footer from '../components/landing/Footer.jsx';
 
@@ -19,8 +20,9 @@ import Footer from '../components/landing/Footer.jsx';
  *   5. UseCases (6 concrete scenarios — "What You Can Build")
  *   6. SupportedNetworks (6 capability cards)
  *   7. Vision (company vision + mission)
- *   8. FinalCTA (green gradient CTA)
- *   9. Footer
+ *   8. PrivacyPolicySection (plain-language privacy summary)
+ *   9. FinalCTA (green gradient CTA)
+ *   10. Footer
  */
 export default function LandingPage() {
   return (
@@ -33,6 +35,7 @@ export default function LandingPage() {
         <UseCases />
         <SupportedNetworks />
         <Vision />
+        <PrivacyPolicySection />
         <FinalCTA />
       </main>
       <Footer />

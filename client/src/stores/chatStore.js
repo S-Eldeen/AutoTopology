@@ -7,7 +7,7 @@ import { sessionApi } from '../services/endpoints.js';
 import { sseManager } from '../services/sse.js';
 import { useAuthStore } from './authStore.js';
 
-function isDesignPrompt(content = '') {
+export function isDesignPrompt(content = '') {
   const msg = String(content).toLowerCase();
   return /\b(build|create|generate|design|make|draw|plan)\b.*\b(network|topology|diagram|router|switch|pc|host|firewall|site|branch|branches|vlan|company)\b/i.test(msg)
     || /\b(give|make|create|design|build)\b.*\b(network\s*)?design\s+for\b/i.test(msg);
@@ -110,6 +110,7 @@ export const useChatStore = create((set, get) => ({
   topology: null,        // { topologyId, topology_dict, ... }
   exportKit: null,       // { exportId, files, ... }
   error: null,
+  designLimitModal: null,
   loadingSession: false,
 
   // ── Actions ────────────────────────────────────────────
@@ -331,7 +332,7 @@ export const useChatStore = create((set, get) => ({
       }
     }
     if (isDesignPrompt(content) && usage && usage.remaining <= 0) {
-      set({ error: resetMessage(usage.resetAt) });
+      set({ error: resetMessage(usage.resetAt), designLimitModal: usage });
       return;
     }
 
@@ -353,13 +354,22 @@ export const useChatStore = create((set, get) => ({
     } catch (err) {
       const apiError = err?.response?.data?.error;
       if (apiError?.usage) useAuthStore.getState().setUsage(apiError.usage);
+      const hitLimit = apiError?.usage && apiError.usage.remaining <= 0;
       set({
         isStreaming: false,
         streamingSessionId: null,
         error: apiError?.message || 'Failed to send message',
+        designLimitModal: hitLimit ? apiError.usage : get().designLimitModal,
       });
     }
   },
+
+  openDesignLimitModal: (usage) => {
+    if (!usage) return;
+    set({ designLimitModal: usage, error: resetMessage(usage.resetAt) });
+  },
+
+  closeDesignLimitModal: () => set({ designLimitModal: null }),
 
   // ── Stop streaming ───────────────────────────────────────
   // Called when the user clicks the stop button while the AI is responding.
@@ -524,6 +534,9 @@ export const useChatStore = create((set, get) => ({
 
       case 'usage_update':
         useAuthStore.getState().setUsage(data.usage);
+        if (data.usage?.remaining <= 0) {
+          set({ designLimitModal: data.usage, error: resetMessage(data.usage.resetAt) });
+        }
         break;
 
       case 'agent_message':

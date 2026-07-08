@@ -111,12 +111,17 @@ export default function LoginPage() {
   const login = useAuthStore((s) => s.login);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!acceptedPrivacy) {
+      setError('Please accept the Privacy Policy before continuing.');
+      return;
+    }
     setLoading(true);
     try {
       await login(email, password);
@@ -245,6 +250,34 @@ export default function LoginPage() {
                   placeholder="••••••••"
                 />
               </div>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-3 text-sm text-zinc-400 transition-colors hover:border-blue-400/40 hover:bg-blue-500/5">
+                <input
+                  type="checkbox"
+                  checked={acceptedPrivacy}
+                  onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+                  className="sr-only"
+                />
+                <span
+                  className={`mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border transition-colors ${
+                    acceptedPrivacy
+                      ? 'border-blue-400 bg-blue-500 text-white'
+                      : 'border-zinc-600 bg-zinc-950 text-transparent'
+                  }`}
+                  aria-hidden
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </span>
+                <span>
+                  I accept the{' '}
+                  <Link to="/privacy" className="font-medium text-blue-300 hover:text-blue-200 hover:underline underline-offset-2">
+                    Privacy Policy
+                  </Link>
+                  .
+                </span>
+              </label>
 
               <button
                 type="submit"

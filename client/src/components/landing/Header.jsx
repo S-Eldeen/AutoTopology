@@ -1,21 +1,81 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore.js';
+
+const NAV_ITEMS = [
+  { id: 'how-it-works', label: 'How it works' },
+  { id: 'use-cases', label: 'Use cases' },
+  { id: 'networks', label: 'Capabilities' },
+  { id: 'privacy-policy', label: 'Privacy & Policy' },
+];
 
 /**
  * Header — sticky nav, dark navy with emerald accents.
  * Transparent over hero → solid navy with border on scroll.
  */
-export default function Header() {
+export default function Header({ showNav = true }) {
   const [scrolled, setScrolled] = useState(false);
+  const [activeId, setActiveId] = useState(NAV_ITEMS[0].id);
+  const [indicator, setIndicator] = useState({ left: 0, width: 0, visible: false });
+  const navRef = useRef(null);
+  const linkRefs = useRef({});
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
+  const updateIndicator = () => {
+    const nav = navRef.current;
+    const activeLink = linkRefs.current[activeId];
+    if (!nav || !activeLink) {
+      setIndicator((prev) => ({ ...prev, visible: false }));
+      return;
+    }
+
+    const navRect = nav.getBoundingClientRect();
+    const linkRect = activeLink.getBoundingClientRect();
+    setIndicator({
+      left: linkRect.left - navRect.left,
+      width: linkRect.width,
+      visible: true,
+    });
+  };
+
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 16);
+    let frame = 0;
+    const onScroll = () => {
+      setScrolled(window.scrollY > 16);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const markerY = window.innerHeight * 0.35;
+        let nextActive = NAV_ITEMS[0].id;
+
+        for (const item of NAV_ITEMS) {
+          const section = document.getElementById(item.id);
+          if (!section) continue;
+          const rect = section.getBoundingClientRect();
+          if (rect.top <= markerY) nextActive = item.id;
+        }
+
+        setActiveId(nextActive);
+      });
+    };
+
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    window.addEventListener('resize', onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
   }, []);
+
+  useLayoutEffect(() => {
+    updateIndicator();
+  }, [activeId, scrolled]);
+
+  useEffect(() => {
+    window.addEventListener('resize', updateIndicator, { passive: true });
+    return () => window.removeEventListener('resize', updateIndicator);
+  }, [activeId]);
 
   return (
     <header
@@ -43,11 +103,31 @@ export default function Header() {
         </Link>
 
         {/* Center nav links */}
-        <div className="hidden md:flex items-center gap-8 text-sm">
-          <a href="#how-it-works" className="text-navy-300 hover:text-brand-400 transition-colors">How it works</a>
-          <a href="#use-cases" className="text-navy-300 hover:text-brand-400 transition-colors">Use cases</a>
-          <a href="#catalog" className="text-navy-300 hover:text-brand-400 transition-colors">Devices</a>
+        {showNav && (
+        <div ref={navRef} className="relative hidden md:flex items-center gap-8 text-sm">
+          <span
+            className="pointer-events-none absolute -bottom-2 h-0.5 rounded-full bg-brand-400 shadow-[0_0_12px_rgba(16,185,129,0.75)] transition-[transform,width,opacity] duration-200 ease-out"
+            style={{
+              width: indicator.width,
+              opacity: indicator.visible ? 1 : 0,
+              transform: `translateX(${indicator.left}px)`,
+            }}
+            aria-hidden
+          />
+          {NAV_ITEMS.map((item) => (
+            <a
+              key={item.id}
+              ref={(node) => { linkRefs.current[item.id] = node; }}
+              href={`/#${item.id}`}
+              className={`relative transition-colors ${
+                activeId === item.id ? 'text-brand-400' : 'text-navy-300 hover:text-brand-400'
+              }`}
+            >
+              {item.label}
+            </a>
+          ))}
         </div>
+        )}
 
         {/* CTAs */}
         <div className="flex items-center gap-2">
