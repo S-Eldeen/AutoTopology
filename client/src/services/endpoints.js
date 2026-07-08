@@ -46,10 +46,6 @@ export const voiceApi = {
   }).then(r => r.data),
 };
 
-export const topologyApi = {
-  get: (id) => api.get(`/topology/${id}`).then(r => r.data),
-};
-
 export const exportApi = {
   status: (id) => api.get(`/export/${id}/status`).then(r => r.data),
   downloadUrl: (id, file) => {

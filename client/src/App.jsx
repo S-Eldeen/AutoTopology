@@ -1,17 +1,17 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { useAuthStore } from './stores/authStore.js';
 import { useChatStore } from './stores/chatStore.js';
 
-import LandingPage from './pages/LandingPage.jsx';
-import LoginPage from './pages/LoginPage.jsx';
-import RegisterPage from './pages/RegisterPage.jsx';
-import ChatPage from './pages/ChatPage.jsx';
-import PlansPage from './pages/PlansPage.jsx';
-import SharedChatPage from './pages/SharedChatPage.jsx';
-import PrivacyPolicyPage from './pages/PrivacyPolicyPage.jsx';
-import SecurityPage from './pages/SecurityPage.jsx';
-import OnboardingModal from './components/auth/OnboardingModal.jsx';
+const LandingPage = lazy(() => import('./pages/LandingPage.jsx'));
+const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage.jsx'));
+const ChatPage = lazy(() => import('./pages/ChatPage.jsx'));
+const PlansPage = lazy(() => import('./pages/PlansPage.jsx'));
+const SharedChatPage = lazy(() => import('./pages/SharedChatPage.jsx'));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage.jsx'));
+const SecurityPage = lazy(() => import('./pages/SecurityPage.jsx'));
+const OnboardingModal = lazy(() => import('./components/auth/OnboardingModal.jsx'));
 
 function ProtectedRoute({ children }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -57,40 +57,42 @@ export default function App() {
 
   return (
     <>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/privacy" element={<PrivacyPolicyPage />} />
-        <Route
-          path="/security"
-          element={
-            <ProtectedRoute>
-              <SecurityPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/share/:token" element={<SharedChatPage />} />
-        <Route
-          path="/chat"
-          element={
-            <ProtectedRoute>
-              <ChatPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/plans"
-          element={
-            <ProtectedRoute>
-              <PlansPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route
+            path="/security"
+            element={
+              <ProtectedRoute>
+                <SecurityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/share/:token" element={<SharedChatPage />} />
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/plans"
+            element={
+              <ProtectedRoute>
+                <PlansPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
 
-      {shouldShowOnboarding && <OnboardingModal />}
+        {shouldShowOnboarding && <OnboardingModal />}
+      </Suspense>
     </>
   );
 }

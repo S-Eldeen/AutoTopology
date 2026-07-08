@@ -17,6 +17,15 @@ import { ensureFreshUsage, isDesignRequest } from '../services/plan.service.js';
 
 const router = Router();
 
+async function findOwnedSession(sessionId, userId) {
+  const session = await Session.findById(sessionId);
+  if (!session) throw new NotFoundError('Session not found');
+  if (session.userId.toString() !== userId.toString()) {
+    throw new ForbiddenError('Not your session');
+  }
+  return session;
+}
+
 // ── GET /api/sessions — list user's sessions ───────────────
 router.get('/', requireAuth, async (req, res, next) => {
   try {
@@ -63,11 +72,7 @@ router.get('/share/:token', async (req, res, next) => {
 
 router.get('/:id', requireAuth, async (req, res, next) => {
   try {
-    const session = await Session.findById(req.params.id);
-    if (!session) throw new NotFoundError('Session not found');
-    if (session.userId.toString() !== req.user._id.toString()) {
-      throw new ForbiddenError('Not your session');
-    }
+    const session = await findOwnedSession(req.params.id, req.user._id);
     let topology = null;
     if (session.currentTopologyId) {
       topology = await Topology.findById(session.currentTopologyId);
@@ -85,11 +90,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
 // ── PATCH /api/sessions/:id/title ──────────────────────────
 router.patch('/:id/title', requireAuth, validate(sessionSchemas.updateTitle), async (req, res, next) => {
   try {
-    const session = await Session.findById(req.params.id);
-    if (!session) throw new NotFoundError('Session not found');
-    if (session.userId.toString() !== req.user._id.toString()) {
-      throw new ForbiddenError('Not your session');
-    }
+    const session = await findOwnedSession(req.params.id, req.user._id);
     session.title = req.body.title;
     await session.save();
     res.json({ ok: true, session });
@@ -99,11 +100,7 @@ router.patch('/:id/title', requireAuth, validate(sessionSchemas.updateTitle), as
 // ── PATCH /api/sessions/:id/star ───────────────────────────
 router.patch('/:id/star', requireAuth, validate(sessionSchemas.updateStarred), async (req, res, next) => {
   try {
-    const session = await Session.findById(req.params.id);
-    if (!session) throw new NotFoundError('Session not found');
-    if (session.userId.toString() !== req.user._id.toString()) {
-      throw new ForbiddenError('Not your session');
-    }
+    const session = await findOwnedSession(req.params.id, req.user._id);
     session.starred = req.body.starred;
     await session.save();
     res.json({ ok: true, session });
@@ -113,11 +110,7 @@ router.patch('/:id/star', requireAuth, validate(sessionSchemas.updateStarred), a
 // ── DELETE /api/sessions/:id ───────────────────────────────
 router.patch('/:id/share', requireAuth, validate(sessionSchemas.updateShare), async (req, res, next) => {
   try {
-    const session = await Session.findById(req.params.id);
-    if (!session) throw new NotFoundError('Session not found');
-    if (session.userId.toString() !== req.user._id.toString()) {
-      throw new ForbiddenError('Not your session');
-    }
+    const session = await findOwnedSession(req.params.id, req.user._id);
     if (req.body.enabled) {
       session.enableShare();
     } else {
@@ -137,11 +130,7 @@ router.patch('/:id/share', requireAuth, validate(sessionSchemas.updateShare), as
 
 router.delete('/:id', requireAuth, async (req, res, next) => {
   try {
-    const session = await Session.findById(req.params.id);
-    if (!session) throw new NotFoundError('Session not found');
-    if (session.userId.toString() !== req.user._id.toString()) {
-      throw new ForbiddenError('Not your session');
-    }
+    const session = await findOwnedSession(req.params.id, req.user._id);
     await Session.deleteOne({ _id: session._id });
     await Topology.deleteMany({ sessionId: session._id });
     res.json({ ok: true });
@@ -151,11 +140,7 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
 // ── GET /api/sessions/:id/stream — SSE endpoint ────────────
 router.get('/:id/stream', sseAuth, async (req, res, next) => {
   try {
-    const session = await Session.findById(req.params.id);
-    if (!session) throw new NotFoundError('Session not found');
-    if (session.userId.toString() !== req.user._id.toString()) {
-      throw new ForbiddenError('Not your session');
-    }
+    const session = await findOwnedSession(req.params.id, req.user._id);
     sseService.subscribe(session._id.toString(), res);
   } catch (err) { next(err); }
 });
@@ -163,11 +148,7 @@ router.get('/:id/stream', sseAuth, async (req, res, next) => {
 // ── POST /api/sessions/:id/messages — send user message ────
 router.post('/:id/messages', requireAuth, validate(messageSchemas.create), async (req, res, next) => {
   try {
-    const session = await Session.findById(req.params.id);
-    if (!session) throw new NotFoundError('Session not found');
-    if (session.userId.toString() !== req.user._id.toString()) {
-      throw new ForbiddenError('Not your session');
-    }
+    const session = await findOwnedSession(req.params.id, req.user._id);
 
     if (isDesignRequest(req.body.content)) {
       const user = await User.findById(req.user._id);

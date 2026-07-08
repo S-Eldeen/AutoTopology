@@ -44,7 +44,7 @@ The result is a `.gns3project` ZIP that imports cleanly into GNS3 GUI.
                │
                ▼
 ┌──────────────────────────────────┐
-│       chat_orchestrator.py       │  LLM Tool-Calling loop
+│   Node backend orchestrator      │  LLM Tool-Calling loop
 │  No FSM. LLM picks which tools   │  (up to 6 rounds per turn)
 │  to call based on context.       │
 └──────┬──────────┬────────────────┘
@@ -118,7 +118,6 @@ The result is a `.gns3project` ZIP that imports cleanly into GNS3 GUI.
 |---|---|
 | `agent.py` | Phase 1 orchestrator. Builds the topology prompt, calls the LLM, runs auto-repair, validates, calls hardware injection. |
 | `config_agent.py` | Phase 2 orchestrator. Builds the config brief, calls the LLM, runs safe-merge, triggers export. |
-| `chat_orchestrator.py` | Conversational agent. LLM tool-calling loop (no FSM). Dispatches to the 4 tool handlers: generate, modify, export, QA. |
 | `context_builder.py` | Reads a hardware-injected topology and produces the Configuration Brief string for Phase 2. Also exposes `build_segments()` and `_identify_core_switches()` used by `topology_finalizer.py`. |
 | `llm_utils.py` | Shared singleton OpenAI client, retry wrapper, JSON extraction. **Single source of truth** for all LLM calls. |
 | `security_prompts.py` | Injects security-profile-specific prompt blocks into Phase 1 and Phase 2 prompts. |
@@ -140,7 +139,6 @@ The result is a `.gns3project` ZIP that imports cleanly into GNS3 GUI.
 | `gns3.py` | Node-type taxonomy, scene geometry, symbol paths, port-name format strings, `FILE_CONFIG_TRIPLETS`. |
 | `schema.py` | Pydantic v2 models: `TopologyRequest`, `GNS3Project`, `Node`, `Link`, `Connection`. Includes validators for connectivity, port collisions, and link limits. |
 | `appliances.py` | Static appliance catalog data — 40+ devices across Dynamips, IOU, QEMU, Docker. |
-| `agent_schemas.py` | `AgentSessionData`, `AgentResponse`, `TOOL_DEFINITIONS` for the conversational agent. |
 | `ai.py` | Conservative AI-side link limits per platform, `MAX_RETRIES`. |
 | `phase2.py` | Phase 2 whitelist keys and value-type constraints. |
 | `validation.py` | Backward-compatible re-exports from `hardware.py` and `gns3.py`. |
@@ -187,7 +185,7 @@ Frontend: "Design a 3-branch enterprise network with enterprise security"
 POST /agent/chat  { session_id, message }
     │
     ▼
-chat_orchestrator.dispatch()
+backend chat.orchestrator.dispatch()
     │  LLM sees conversation history + topology context
     │  LLM calls: generate_new_topology(requirements="...")
     │
@@ -217,7 +215,7 @@ _tool_apply_security_and_export()
     │  5. SSE broadcast: complete { download_url, validator_passed, … }
     │
     ▼
-AgentResponse { message: "Your enterprise network is ready…", tool_calls_made: […] }
+Backend stores the assistant message and streams completion events to the client
     │
     ▼
 GET /sessions/{id}/download  → .gns3project file
@@ -300,14 +298,6 @@ python run.py --request "Simple lab with 2 routers" --no-phase2
 python run.py --profile profiles/my_lab.json
 ```
 
-### Conversational CLI
-
-```bash
-python chat_cli.py
-```
-
-Provides a REPL interface to the tool-calling agent with real-time SSE event display.
-
 ### Validator (standalone)
 
 ```bash
@@ -357,7 +347,7 @@ This makes it structurally impossible for a Phase 2 LLM call to corrupt hardware
 
 ### 5. LLM Tool-Calling Over FSM
 
-The conversational agent (`chat_orchestrator.py`) uses OpenAI function calling instead of a hand-written finite state machine. The LLM reads the conversation history and a context-aware system prompt to decide which tools to invoke. This naturally handles:
+The backend conversational orchestrator uses OpenAI function calling instead of a hand-written finite state machine. The LLM reads the conversation history and a context-aware system prompt to decide which tools to invoke. This naturally handles:
 - Compound intents ("design X and apply enterprise security" in one message).
 - Context switching mid-conversation.
 - Clarifying questions when information is missing.
@@ -389,7 +379,6 @@ Security prompts are injected at both Phase 1 (topology design) and Phase 2 (con
 ```
 ai-engine/
 ├── run.py                          # Entrypoint: API server or CLI pipeline
-├── chat_cli.py                     # Interactive conversational REPL
 ├── requirements.txt
 ├── structranet/
 │   ├── __init__.py                 # Package version
@@ -399,7 +388,6 @@ ai-engine/
 │   ├── ai/
 │   │   ├── agent.py                # Phase 1 LLM + auto-repair + hardware injection
 │   │   ├── config_agent.py         # Phase 2 LLM + safe-merge + export trigger
-│   │   ├── chat_orchestrator.py    # Conversational tool-calling agent
 │   │   ├── context_builder.py      # Configuration Brief generator
 │   │   ├── llm_utils.py            # OpenAI client singleton, retry, JSON extraction
 │   │   ├── security_prompts.py     # Per-profile prompt injection blocks
@@ -419,7 +407,6 @@ ai-engine/
 │   │   ├── gns3.py                 # GNS3 node taxonomy, geometry, symbols
 │   │   ├── schema.py               # Pydantic topology domain models
 │   │   ├── appliances.py           # Static appliance catalog data
-│   │   ├── agent_schemas.py        # Conversational agent schemas + tool definitions
 │   │   ├── ai.py                   # AI link limits, retry config
 │   │   ├── phase2.py               # Phase 2 whitelist + type constraints
 │   │   └── validation.py           # Backward-compat re-exports from hardware.py/gns3.py

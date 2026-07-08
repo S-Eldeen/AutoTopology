@@ -137,7 +137,6 @@ structuranet_app/
             │   └── OnboardingModal.jsx     # GNS3 image calibration popup
             ├── chat/
             │   ├── ChatLayout.jsx          # Root chat container
-            │   ├── ChatTopBar.jsx
             │   ├── Sidebar.jsx             # Session list + profile popover
             │   ├── ConversationView.jsx    # Messages + streaming + code blocks + copy buttons
             │   ├── DownloadKit.jsx         # 3 download buttons (gns3project, configs, manifest)

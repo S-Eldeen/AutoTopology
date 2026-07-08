@@ -89,7 +89,6 @@ export function notFoundHandler(req, res, _next) {
 }
 
 // Final error handler
-// eslint-disable-next-line no-unused-vars
 export function errorHandler(err, req, res, _next) {
   err = wrapMongooseError(err);
 

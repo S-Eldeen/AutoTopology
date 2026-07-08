@@ -228,7 +228,7 @@ class AIEngineBridge {
         this._spawning = false;
 
         // Reject all pending requests with a clear error
-        for (const [reqId, entry] of this._pending.entries()) {
+        for (const entry of this._pending.values()) {
           clearTimeout(entry.timer);
           entry.reject(new EngineError(
             `AI worker exited unexpectedly (code=${code}) while processing ${entry.command}`,
@@ -307,12 +307,16 @@ class AIEngineBridge {
             command: 'shutdown',
             args: {},
           }) + '\n');
-        } catch { /* stdin may already be closed */ }
+        } catch {
+          // stdin may already be closed during shutdown.
+        }
 
         // Force-kill after 3s if still alive
         setTimeout(() => {
           if (this._proc && !this._proc.killed) {
-            try { this._proc.kill('SIGKILL'); } catch {}
+            try { this._proc.kill('SIGKILL'); } catch {
+              // Process may have exited between the liveness check and kill.
+            }
           }
         }, 3000);
       }
@@ -322,7 +326,9 @@ class AIEngineBridge {
     process.on('SIGINT', () => shutdown('SIGINT'));
     process.on('exit', () => {
       if (this._proc && !this._proc.killed) {
-        try { this._proc.kill('SIGKILL'); } catch {}
+        try { this._proc.kill('SIGKILL'); } catch {
+          // Process may already be gone on Node exit.
+        }
       }
     });
   }
@@ -339,7 +345,7 @@ class AIEngineBridge {
     let msg;
     try {
       msg = JSON.parse(raw);
-    } catch (err) {
+    } catch {
       logger.warn('Failed to parse worker JSONL message:', raw.slice(0, 200));
       return;
     }

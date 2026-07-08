@@ -18,7 +18,6 @@ import { requireAuth, sseAuth } from '../middleware/auth.js';
 import { NotFoundError, ForbiddenError } from '../utils/errors.js';
 import path from 'path';
 import fs from 'fs';
-import fsp from 'fs/promises';
 import archiver from 'archiver';
 import logger from '../utils/logger.js';
 

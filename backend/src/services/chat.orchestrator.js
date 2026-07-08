@@ -187,6 +187,7 @@ function getDeterministicAction(userMessage, hasTopology) {
 // EMOJI SAFETY NET
 // Hard guarantee: NO emojis ever reach the frontend, regardless of LLM behavior.
 // ═══════════════════════════════════════════════════════════
+// eslint-disable-next-line no-misleading-character-class -- Intentional broad Unicode ranges for stripping streamed emoji fragments.
 const EMOJI_REGEX = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{2300}-\u{23FF}\u{2190}-\u{21FF}\u{200D}\u{20E3}]/gu;
 
 /**

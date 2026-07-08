@@ -201,18 +201,6 @@ export default function ConversationView() {
   );
 }
 
-// ── Avatar (shared) ────────────────────────────────────────
-function Avatar() {
-  return (
-    <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center shadow-md shadow-emerald-500/30">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="6" cy="6" r="2" /><circle cx="18" cy="6" r="2" /><circle cx="6" cy="18" r="2" /><circle cx="18" cy="18" r="2" />
-        <path d="M8 6h8M6 8v8M18 8v8M8 18h8" />
-      </svg>
-    </div>
-  );
-}
-
 // ── Copy button (reusable) ─────────────────────────────────
 function CopyButton({ text, label = 'Copy', className = '' }) {
   const [copied, setCopied] = useState(false);

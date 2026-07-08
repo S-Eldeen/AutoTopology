@@ -165,7 +165,7 @@ export async function refresh({ refreshToken }) {
   let payload;
   try {
     payload = jwt.verify(refreshToken, config.jwt.refreshSecret);
-  } catch (err) {
+  } catch {
     throw new AuthError('Invalid or expired refresh token');
   }
 
