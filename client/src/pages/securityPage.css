@@ -230,6 +230,21 @@
 .sec-body::-webkit-scrollbar { width:5px; }
 .sec-body::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:3px; }
 
+.security-scroll-region::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.security-scroll-region::-webkit-scrollbar-track {
+  background: transparent;
+}
+.security-scroll-region::-webkit-scrollbar-thumb {
+  background: rgba(16,185,129,0.45);
+  border-radius: 999px;
+}
+.security-scroll-region::-webkit-scrollbar-thumb:hover {
+  background: rgba(16,185,129,0.7);
+}
+
 /* ── KPI ROW ── */
 .sec-kpi-row {
   display:grid;

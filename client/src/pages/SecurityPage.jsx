@@ -368,7 +368,7 @@ const SecurityPage = () => {
           IDLE SCREEN — with OSI infographic
          ══════════════════════════════════════════ */}
       {phase==="idle"&&(
-        <div style={{flex:1,minHeight:0,overflowY:"auto",overscrollBehavior:"contain",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-start",gap:24,padding:"32px 28px",scrollbarWidth:"thin",scrollbarColor:"rgba(255,255,255,0.08) transparent"}}>
+        <div className="security-scroll-region" style={{flex:1,minHeight:0,overflowY:"auto",overscrollBehavior:"contain",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-start",gap:24,padding:"32px 28px",scrollbarWidth:"thin",scrollbarColor:"rgba(16,185,129,0.45) transparent"}}>
 
           {/* Title + subtitle */}
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:10,textAlign:"center"}}>
@@ -414,7 +414,7 @@ const SecurityPage = () => {
             }}>
               OSI SECURITY COVERAGE OVERVIEW
             </div>
-            <div style={{
+            <div className="security-scroll-region" style={{
               maxHeight:"min(46vh, 360px)",
               overflowY:"auto",
               overflowX:"auto",
@@ -452,7 +452,7 @@ const SecurityPage = () => {
 
       {/* ── RESULTS ── */}
       {phase==="done"&&report&&(
-        <div style={{flex:1,minHeight:0,overflowY:"auto",overscrollBehavior:"contain",padding:"16px 20px",display:"flex",flexDirection:"column",gap:14,scrollbarWidth:"thin",scrollbarColor:"rgba(255,255,255,0.08) transparent"}}>
+        <div className="security-scroll-region" style={{flex:1,minHeight:0,overflowY:"auto",overscrollBehavior:"contain",padding:"16px 20px",display:"flex",flexDirection:"column",gap:14,scrollbarWidth:"thin",scrollbarColor:"rgba(16,185,129,0.45) transparent"}}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:12}}>
             <div style={{...S.card,display:"flex",flexDirection:"column",alignItems:"center"}}>
               <div style={S.cardLabel}>SECURITY SCORE</div>
