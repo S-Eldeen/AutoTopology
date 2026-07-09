@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { PanelLeft, Plus, Share2, ShieldCheck } from 'lucide-react';
+import { PanelLeft, Plus, Share2 } from 'lucide-react';
 import { useChatStore } from '../../stores/chatStore.js';
 import { useAuthStore } from '../../stores/authStore.js';
 import Sidebar from './Sidebar.jsx';
@@ -101,15 +100,6 @@ export default function ChatLayout() {
 
         {/* Floating buttons — top right: share + new chat */}
         <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5">
-          <Link
-            to="/security"
-            className="flex items-center gap-1.5 rounded-lg border border-emerald-400/30 px-3 py-2 text-xs font-medium text-emerald-200 shadow-[0_0_18px_rgba(16,185,129,0.18)] transition-colors hover:border-emerald-300/50 hover:bg-emerald-400/[0.16] hover:text-white"
-            style={{ background: 'rgba(16,185,129,0.12)', backdropFilter: 'blur(14px)' }}
-            title="Open security analyzer"
-          >
-            <ShieldCheck size={14} />
-            <span className="hidden sm:inline">Security</span>
-          </Link>
           {usage && (
             <div
               className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] px-3 py-2 text-xs text-zinc-400"

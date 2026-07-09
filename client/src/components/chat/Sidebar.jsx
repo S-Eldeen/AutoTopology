@@ -273,7 +273,7 @@ export default function Sidebar({
         </div>
 
         {/* New Chat — desaturated emerald */}
-        <div className="p-3 border-b border-white/[0.08] flex-shrink-0">
+        <div className="space-y-2 p-3 border-b border-white/[0.08] flex-shrink-0">
           <button
             onClick={onNewChat}
             className="w-full flex items-center gap-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-white text-sm font-medium px-3 py-2.5 transition-colors shadow-sm shadow-brand-500/20"
@@ -281,6 +281,15 @@ export default function Sidebar({
             <Plus size={16} />
             <span>New Chat</span>
           </button>
+          <Link
+            to="/security"
+            onClick={onClose}
+            className="w-full flex items-center gap-2 rounded-xl border border-emerald-400/20 px-3 py-2.5 text-sm font-medium text-emerald-200 transition-colors hover:border-emerald-300/40 hover:bg-emerald-400/[0.12] hover:text-white"
+            style={{ background: 'rgba(16,185,129,0.08)' }}
+          >
+            <ShieldCheck size={16} />
+            <span>Security</span>
+          </Link>
         </div>
 
         {/* Session list */}

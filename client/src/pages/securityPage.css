@@ -9,20 +9,20 @@
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  background-color: #0e0e14;
+  background-color: #0a0b0d;
   color: rgba(255,255,255,0.88);
   font-family: 'Inter', sans-serif;
   font-size: 13px;
   overflow: hidden;
   animation: secPageIn 0.22s ease;
 
-  --accent:  #4f8ef7;
-  --green:   #22d3a5;
+  --accent:  #10b981;
+  --green:   #10b981;
   --yellow:  #f5c842;
   --red:     #f87171;
   --orange:  #fb923c;
-  --surface: #14141e;
-  --card:    #1a1a28;
+  --surface: rgba(10,11,13,0.88);
+  --card:    rgba(255,255,255,0.035);
   --border:  rgba(255,255,255,0.07);
   --muted:   rgba(255,255,255,0.38);
   --mono:    'JetBrains Mono', monospace;
@@ -73,7 +73,7 @@
 .sec-brand { display:flex; align-items:center; gap:8px; color:var(--accent); }
 .sec-brand-name {
   font-family: var(--mono);
-  font-weight: 700; font-size:14px; letter-spacing:2px; color:#e0eeff;
+  font-weight: 700; font-size:14px; letter-spacing:2px; color:#f4f4f5;
 }
 .sec-brand-sub {
   font-family: var(--mono);
@@ -82,7 +82,7 @@
 .sec-version {
   font-family: var(--mono);
   font-size:10px; padding:2px 7px; border-radius:4px;
-  background:rgba(79,142,247,0.15); border:1px solid rgba(79,142,247,0.3);
+  background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3);
   color:var(--accent);
 }
 .sec-session {
@@ -118,7 +118,7 @@
   min-width:260px; cursor:pointer;
   transition: border-color 0.15s;
 }
-.sec-file-input:hover { border-color:rgba(79,142,247,0.35); }
+.sec-file-input:hover { border-color:rgba(16,185,129,0.35); }
 .sec-actions { display:flex; gap:8px; }
 
 /* Buttons */
@@ -131,7 +131,7 @@
   transition:all 0.18s; white-space:nowrap;
 }
 .sec-btn-primary { background:var(--accent); color:#fff; border-color:var(--accent); }
-.sec-btn-primary:hover:not(:disabled) { background:#6ba3f8; box-shadow:0 0 18px rgba(79,142,247,0.4); }
+.sec-btn-primary:hover:not(:disabled) { background:#34d399; box-shadow:0 0 18px rgba(16,185,129,0.4); }
 .sec-btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
 .sec-btn-ghost { background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.8); border-color:var(--border); }
 .sec-btn-ghost:hover:not(:disabled) { background:rgba(255,255,255,0.09); }
@@ -181,8 +181,8 @@
 }
 .sec-idle-icon {
   width:64px; height:64px; border-radius:18px;
-  background:rgba(79,142,247,0.08);
-  border:1px solid rgba(79,142,247,0.2);
+  background:rgba(16,185,129,0.08);
+  border:1px solid rgba(16,185,129,0.2);
   display:flex; align-items:center; justify-content:center;
   color:var(--accent);
 }
@@ -318,7 +318,7 @@
   transition:all 0.15s;
 }
 .filter-tab:hover { background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.9); }
-.filter-tab.active { background:rgba(79,142,247,0.08); border-color:var(--accent); color:var(--accent); }
+.filter-tab.active { background:rgba(16,185,129,0.08); border-color:var(--accent); color:var(--accent); }
 
 /* ══════════════════════════════════════════
    FINDING CARD
@@ -399,8 +399,8 @@
 
 .finding-remediation {
   margin-top:10px;
-  background:rgba(79,142,247,0.05);
-  border:1px solid rgba(79,142,247,0.15);
+  background:rgba(16,185,129,0.05);
+  border:1px solid rgba(16,185,129,0.15);
   border-radius:8px; padding:10px 14px;
 }
 .finding-rem-header { display:flex; align-items:center; gap:7px; margin-bottom:6px; }
@@ -446,3 +446,4 @@
   .sec-file-row  { flex-wrap:wrap; }
   .sec-back-btn span { display:none; }
 }
+
