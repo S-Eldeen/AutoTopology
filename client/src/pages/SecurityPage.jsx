@@ -290,7 +290,7 @@ const SecurityPage = () => {
   };
 
   const S = {
-    page:      {position:"fixed",inset:0,zIndex:9999,display:"flex",flexDirection:"column",background:"radial-gradient(1200px 600px at 50% -10%, rgba(16,185,129,0.08), transparent 60%), #0a0b0d",color:"rgba(255,255,255,0.88)",fontFamily:"'Inter',sans-serif",fontSize:13,overflow:"hidden"},
+    page:      {position:"fixed",inset:0,zIndex:9999,display:"flex",flexDirection:"column",minHeight:0,background:"radial-gradient(1200px 600px at 50% -10%, rgba(16,185,129,0.08), transparent 60%), #0a0b0d",color:"rgba(255,255,255,0.88)",fontFamily:"'Inter',sans-serif",fontSize:13,overflow:"hidden"},
     topbar:    {display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 20px",height:52,background:"rgba(5,11,10,0.94)",backdropFilter:"blur(14px)",borderBottom:"1px solid rgba(255,255,255,0.08)",flexShrink:0},
     controls:  {display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,padding:"10px 20px",background:"rgba(10,11,13,0.82)",backdropFilter:"blur(14px)",borderBottom:"1px solid rgba(255,255,255,0.08)",flexShrink:0,flexWrap:"wrap"},
     card:      {background:"rgba(255,255,255,0.035)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"14px 16px",boxShadow:"0 14px 36px rgba(0,0,0,0.22)"},
@@ -368,7 +368,7 @@ const SecurityPage = () => {
           IDLE SCREEN — with OSI infographic
          ══════════════════════════════════════════ */}
       {phase==="idle"&&(
-        <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:24,padding:"24px 28px",scrollbarWidth:"thin",scrollbarColor:"rgba(255,255,255,0.08) transparent"}}>
+        <div style={{flex:1,minHeight:0,overflowY:"auto",overscrollBehavior:"contain",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-start",gap:24,padding:"32px 28px",scrollbarWidth:"thin",scrollbarColor:"rgba(255,255,255,0.08) transparent"}}>
 
           {/* Title + subtitle */}
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:10,textAlign:"center"}}>
@@ -404,7 +404,7 @@ const SecurityPage = () => {
             width:"100%", maxWidth:760,
             background:"rgba(255,255,255,0.015)",
             border:"1px solid rgba(255,255,255,0.06)",
-            borderRadius:12, overflow:"hidden",
+            borderRadius:12,
             padding:"14px 16px 10px",
           }}>
             <div style={{
@@ -414,7 +414,17 @@ const SecurityPage = () => {
             }}>
               OSI SECURITY COVERAGE OVERVIEW
             </div>
-            <OsiInfographic />
+            <div style={{
+              maxHeight:"min(46vh, 360px)",
+              overflowY:"auto",
+              overflowX:"auto",
+              overscrollBehavior:"contain",
+              paddingRight:4,
+              scrollbarWidth:"thin",
+              scrollbarColor:"rgba(16,185,129,0.35) transparent",
+            }}>
+              <OsiInfographic />
+            </div>
           </div>
 
           {/* CTA */}
@@ -429,7 +439,7 @@ const SecurityPage = () => {
 
       {/* ── SCANNING ── */}
       {phase==="running"&&(
-        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:18}}>
+        <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:18}}>
           <div style={{position:"relative",width:80,height:80,display:"flex",alignItems:"center",justifyContent:"center",color:"#10b981"}}>
             <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"2px solid #10b981",animation:"scanPulse 1.4s ease-out infinite"}}/>
             <ShieldIcon/>
@@ -442,7 +452,7 @@ const SecurityPage = () => {
 
       {/* ── RESULTS ── */}
       {phase==="done"&&report&&(
-        <div style={{flex:1,overflowY:"auto",padding:"16px 20px",display:"flex",flexDirection:"column",gap:14,scrollbarWidth:"thin",scrollbarColor:"rgba(255,255,255,0.08) transparent"}}>
+        <div style={{flex:1,minHeight:0,overflowY:"auto",overscrollBehavior:"contain",padding:"16px 20px",display:"flex",flexDirection:"column",gap:14,scrollbarWidth:"thin",scrollbarColor:"rgba(255,255,255,0.08) transparent"}}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:12}}>
             <div style={{...S.card,display:"flex",flexDirection:"column",alignItems:"center"}}>
               <div style={S.cardLabel}>SECURITY SCORE</div>
