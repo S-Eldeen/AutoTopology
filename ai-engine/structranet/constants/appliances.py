@@ -112,7 +112,7 @@ APPLIANCE_CATALOG: Dict[str, Dict[str, Any]] = {
     "Cisco 7200": {
         "node_type":         "dynamips",
         "platform":          "c7200",
-        "image":             "c7200-adventerprisek9-mz.124-24.T5.image",
+        "image":             "c7200-adventerprisek9-mz.153-3.XB12.image",
         "ram":               512,          # GNS3 default for c7200
         "nvram":             512,          # GNS3 default for c7200
         "slot0":             "C7200-IO-FE",

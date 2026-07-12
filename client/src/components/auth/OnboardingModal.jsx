@@ -8,7 +8,7 @@ import { profileApi } from '../../services/endpoints.js';
  *
  * WHY THIS EXISTS
  * A .gns3project file references specific image filenames (e.g.
- * `c7200-adventerprisek9-mz.124-24.T5.image`). When the user imports the
+ * `c7200-adventerprisek9-mz.153-3.XB12.image`). When the user imports the
  * project into THEIR GNS3 server, GNS3 refuses to open it unless those
  * exact images are already installed. This popup asks the user to map each
  * device template to the image filename they have installed, so the

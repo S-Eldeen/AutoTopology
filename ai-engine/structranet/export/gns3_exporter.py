@@ -707,7 +707,11 @@ def _inject_dynamips_properties(
     props.setdefault("ram", PLATFORMS_DEFAULT_RAM.get(platform, 256))
 
     if "image" not in props:
-        placeholder = f"{platform}-adventerprisek9-mz.124-25d.bin"
+        placeholder = (
+            "c7200-adventerprisek9-mz.153-3.XB12.image"
+            if platform == "c7200"
+            else f"{platform}-adventerprisek9-mz.124-25d.bin"
+        )
         props["image"] = placeholder
         logger.warning(
             "Node '%s': no 'image' property — using placeholder '%s'.",
