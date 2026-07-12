@@ -4,6 +4,13 @@ gns3_exporter.py — Structranet AI  ·  GNS3 Portable Project Exporter  (V4.5)
 Converts final_topology.json → network.gns3project (a ZIP importable via
 GNS3 GUI → File → Import portable project).
 
+V4.6 changes vs V4.5
+─────────────────────
+  • Strip AI-only hardware context fields before schema validation.
+  • Preserve the valid Dynamips ``nvram`` integer property.
+  • Replace ``startup_config_content`` with a ``startup_config`` file pointer
+    after the content has been packed into the portable project.
+
 V4.5 changes vs V4.4
 ─────────────────────
   • FIX: _clean_properties no longer injects file-pointer keys
@@ -569,7 +576,8 @@ def _extract_configs(node: dict, node_uuid: str) -> Dict[str, str]:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Config content keys that the AI embeds into node properties.
-# These are VALID GNS3 schema properties — keep them in the output.
+# Most valid same-type keys pass through; startup_config_content is replaced
+# by a file pointer because it is rejected by the node-update (PUT) pipeline.
 # However, content keys belonging to a DIFFERENT node type must be
 # stripped because they are not valid for this node type's schema
 # (GNS3 schemas have additionalProperties: false).
@@ -577,21 +585,18 @@ _PIPELINE_CONTENT_KEYS: frozenset = frozenset(
     k for k, _, _ in FILE_CONFIG_TRIPLETS
 )
 
-# File-pointer keys that must NEVER appear in node properties.
-# These are NOT valid properties in ANY GNS3 node-type schema
-# (Dynamips, IOU, QEMU, VPCS all have additionalProperties: false).
-# They exist only in the .gns3 project file as path references, but
-# GNS3 rejects them when they appear in the node properties dict.
-# The LLM or upstream pipeline may accidentally include them — strip them.
+# Unsupported file-pointer keys that must not appear in node properties.
 _FORBIDDEN_POINTER_KEYS: frozenset = frozenset([
-    "startup_config",    # Dynamips/IOU/QEMU — use startup_config_content instead
     "private_config",   # Dynamips/IOU     — use private_config_content instead
-    "nvram",            # Dynamips         — not a valid schema property
 ])
+
+_CONTENT_TO_POINTER: dict = {
+    "startup_config_content": "startup_config",
+}
 
 
 def _clean_properties(node: dict) -> dict:
-    """Strip forbidden pointer keys and cross-type content keys from node properties.
+    """Strip internal keys and replace PUT-unsafe startup config content.
 
     The GNS3 server validates each node's properties against its type-specific
     schema with ``additionalProperties: false``.  This means ONLY properties
@@ -625,10 +630,10 @@ def _clean_properties(node: dict) -> dict:
     cleaned: dict = {}
 
     # Build the set of content keys that are valid for this node type.
-    active_content_keys: set = set()
-    for prop_key, target_type, _subpath in FILE_CONFIG_TRIPLETS:
+    active_content_paths: dict = {}
+    for prop_key, target_type, subpath in FILE_CONFIG_TRIPLETS:
         if target_type == ntype:
-            active_content_keys.add(prop_key)
+            active_content_paths[prop_key] = subpath
 
     for k, v in props.items():
         # Strip forbidden file-pointer keys that are never valid in any
@@ -649,15 +654,23 @@ def _clean_properties(node: dict) -> dict:
                 "Stripped catalog meta key '%s' from %s node", k, ntype,
             )
             continue
-        if k in _PIPELINE_CONTENT_KEYS and k not in active_content_keys:
+        if k in _PIPELINE_CONTENT_KEYS and k not in active_content_paths:
             # Content key for a *different* node type — drop it.
             # It is not valid in this node type's schema.
             logger.debug(
                 "Stripped cross-type key '%s' (not valid for %s)", k, ntype,
             )
             continue
+        if k in _CONTENT_TO_POINTER:
+            continue
         # Valid property (including content keys for THIS node type) — keep.
         cleaned[k] = v
+
+    # Do this after copying ordinary properties so an upstream pointer cannot
+    # override the path of the config file packed by _extract_configs().
+    for content_key, pointer_key in _CONTENT_TO_POINTER.items():
+        if props.get(content_key) and content_key in active_content_paths:
+            cleaned[pointer_key] = active_content_paths[content_key]
 
     return cleaned
 

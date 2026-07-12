@@ -80,6 +80,10 @@ CATALOG_META_KEYS: frozenset = frozenset([
     "first_port_name",
     "_symbol",
     "_category",
+    "_interfaces",
+    "_hardware_summary",
+    "_image_required",
+    "_link_count",
 ])
 
 # ═══════════════════════════════════════════════════════════════════════════════
