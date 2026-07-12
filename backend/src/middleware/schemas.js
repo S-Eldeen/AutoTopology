@@ -34,6 +34,13 @@ export const profileSchemas = {
     requireTemplateImageMap: z.boolean().optional(),
     imageMap: z.record(z.string(), z.string()).optional(),
   }),
+  forgotPassword: z.object({
+    email: z.string().email('Invalid email format'),
+  }),
+  resetPassword: z.object({
+    token: z.string().min(32, 'Invalid reset token'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+  }),
   updatePlan: z.object({
     plan: z.enum(['free', 'plus', 'pro']),
   }),

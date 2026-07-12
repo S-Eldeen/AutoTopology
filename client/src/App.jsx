@@ -6,6 +6,8 @@ import { useChatStore } from './stores/chatStore.js';
 const LandingPage = lazy(() => import('./pages/LandingPage.jsx'));
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage.jsx'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage.jsx'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage.jsx'));
 const ChatPage = lazy(() => import('./pages/ChatPage.jsx'));
 const PlansPage = lazy(() => import('./pages/PlansPage.jsx'));
 const SharedChatPage = lazy(() => import('./pages/SharedChatPage.jsx'));
@@ -67,6 +69,8 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
           <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
+          <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
+          <Route path="/reset-password" element={<GuestRoute><ResetPasswordPage /></GuestRoute>} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route
             path="/security"

@@ -231,3 +231,43 @@ export async function getMe(userId) {
   await ensureFreshUsage(user);
   return { user: serializeUser(user) };
 }
+
+export async function requestPasswordReset({ email }) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail })
+    .select('+passwordResetTokenHash +passwordResetExpiresAt');
+  let resetToken = null;
+
+  if (user) {
+    resetToken = crypto.randomBytes(32).toString('hex');
+    user.passwordResetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    user.passwordResetExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    await user.save();
+    logger.info(`Password reset requested for ${user.email}`);
+  }
+
+  return {
+    message: 'If an account exists for that email, password reset instructions are available.',
+    ...(config.env !== 'production' && resetToken
+      ? { resetUrl: `${config.clientUrl}/reset-password?token=${resetToken}` }
+      : {}),
+  };
+}
+
+export async function resetPassword({ token, password }) {
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const user = await User.findOne({
+    passwordResetTokenHash: tokenHash,
+    passwordResetExpiresAt: { $gt: new Date() },
+  }).select('+passwordHash +passwordResetTokenHash +passwordResetExpiresAt +refreshTokens');
+
+  if (!user) throw new ValidationError('This password reset link is invalid or has expired');
+
+  user.passwordHash = await User.hashPassword(password);
+  user.passwordResetTokenHash = null;
+  user.passwordResetExpiresAt = null;
+  user.refreshTokens = [];
+  await user.save();
+  logger.info(`Password reset completed for ${user.email}`);
+  return { message: 'Password updated successfully. You can now sign in.' };
+}

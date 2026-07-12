@@ -32,6 +32,20 @@ router.post('/login',
   })
 );
 
+router.post('/forgot-password',
+  validate(authSchemas.forgotPassword),
+  asyncHandler(async (req, res) => {
+    res.json(await authService.requestPasswordReset(req.body));
+  })
+);
+
+router.post('/reset-password',
+  validate(authSchemas.resetPassword),
+  asyncHandler(async (req, res) => {
+    res.json(await authService.resetPassword(req.body));
+  })
+);
+
 // ── POST /api/auth/refresh ─────────────────────────────────
 router.post('/refresh',
   validate(authSchemas.refresh),
