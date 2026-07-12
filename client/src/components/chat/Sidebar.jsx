@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { planLabel } from '../../constants/plans.js';
 import { useAuthStore } from '../../stores/authStore.js';
 
 /**
@@ -335,13 +336,18 @@ export default function Sidebar({
               </div>
               <ChevronDown size={14} className={`flex-shrink-0 text-zinc-500 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
             </button>
-            <Link
-              to="/plans"
-              onClick={onClose}
-              className="flex-shrink-0 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[11px] font-semibold text-emerald-300 transition-colors hover:border-emerald-300/50 hover:bg-emerald-400/20 hover:text-emerald-200"
-            >
-              Upgrade
-            </Link>
+            <div className="flex flex-shrink-0 flex-col items-center gap-1">
+              <Link
+                to="/plans"
+                onClick={onClose}
+                className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[11px] font-semibold text-emerald-300 transition-colors hover:border-emerald-300/50 hover:bg-emerald-400/20 hover:text-emerald-200"
+              >
+                Upgrade
+              </Link>
+              <span className="text-[10px] leading-none text-zinc-500">
+                {planLabel(user?.usage?.plan || user?.plan)} plan
+              </span>
+            </div>
           </div>
 
           {profileOpen && (
