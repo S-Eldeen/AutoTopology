@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useAuthStore } from '../../stores/authStore.js';
 
 const CHECKS = [
   'ACL and firewall rule gaps',
@@ -23,6 +24,8 @@ function ShieldIcon() {
 }
 
 export default function SecurityFeature() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
   return (
     <section id="security-feature" className="relative overflow-hidden bg-[#020706] py-20 lg:py-28 border-y border-white/[0.08]">
       <div className="absolute inset-0 pointer-events-none">
@@ -60,8 +63,8 @@ export default function SecurityFeature() {
                 <path d="M5 12h14M13 5l7 7-7 7" />
               </svg>
             </Link>
-            <Link to="/register" className="btn-secondary justify-center">
-              Create account
+            <Link to={isAuthenticated ? '/chat' : '/register'} className="btn-secondary justify-center">
+              {isAuthenticated ? 'Open Chat' : 'Create account'}
             </Link>
           </div>
         </div>
