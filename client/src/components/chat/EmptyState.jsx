@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowUp, Mic, AudioLines } from 'lucide-react';
 import ActionChipsBar from './ActionChipsBar.jsx';
-import { isDesignPrompt, useChatStore } from '../../stores/chatStore.js';
+import { isConfirmationPrompt, useChatStore } from '../../stores/chatStore.js';
 import { useAuthStore } from '../../stores/authStore.js';
 import { useAutoResizeTextarea } from '../../hooks/useAutoResizeTextarea.js';
 import { useVoiceInput } from '../../hooks/useVoiceInput.js';
@@ -38,7 +38,7 @@ export default function EmptyState() {
     document.querySelector('[data-chat-input]')?.focus();
   };
 
-  const isDesignBlocked = !!usage && usage.remaining <= 0 && isDesignPrompt(text);
+  const isDesignBlocked = !!usage && usage.remaining <= 0 && isConfirmationPrompt(text);
 
   useEffect(() => {
     if (isDesignBlocked) openDesignLimitModal(usage);

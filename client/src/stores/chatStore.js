@@ -7,10 +7,10 @@ import { sessionApi } from '../services/endpoints.js';
 import { sseManager } from '../services/sse.js';
 import { useAuthStore } from './authStore.js';
 
-export function isDesignPrompt(content = '') {
+export function isConfirmationPrompt(content = '') {
   const msg = String(content).toLowerCase();
-  return /\b(build|create|generate|design|make|draw|plan)\b.*\b(network|topology|diagram|router|switch|pc|host|firewall|site|branch|branches|vlan|company)\b/i.test(msg)
-    || /\b(give|make|create|design|build)\b.*\b(network\s*)?design\s+for\b/i.test(msg);
+  return /\b(topology|design)\b.*\b(confirm|confirmed|approve|approved|accept|accepted)\b/i.test(msg)
+    || /\b(confirm|confirmed|approve|approved|accept|accepted)\b.*\b(topology|design)\b/i.test(msg);
 }
 
 function resetMessage(resetAt) {
@@ -329,14 +329,14 @@ export const useChatStore = create((set, get) => ({
     }
 
     let usage = useAuthStore.getState().user?.usage;
-    if (isDesignPrompt(content) && usage && usage.remaining <= 0) {
+    if (isConfirmationPrompt(content) && usage && usage.remaining <= 0) {
       try {
         usage = await useAuthStore.getState().fetchUsage();
       } catch {
         // Fall through to the existing cached usage; the API will still enforce the limit.
       }
     }
-    if (isDesignPrompt(content) && usage && usage.remaining <= 0) {
+    if (isConfirmationPrompt(content) && usage && usage.remaining <= 0) {
       set({ error: resetMessage(usage.resetAt), designLimitModal: usage });
       return;
     }

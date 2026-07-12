@@ -2,7 +2,7 @@ import { ArrowUp, Square, Copy, Check, Mic, AudioLines } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { isDesignPrompt, useChatStore } from '../../stores/chatStore.js';
+import { isConfirmationPrompt, useChatStore } from '../../stores/chatStore.js';
 import { useAuthStore } from '../../stores/authStore.js';
 import { useAutoResizeTextarea } from '../../hooks/useAutoResizeTextarea.js';
 import { useVoiceInput } from '../../hooks/useVoiceInput.js';
@@ -39,7 +39,7 @@ export default function ConversationView() {
   } = useVoiceInput({ text, setText });
 
   const activeMessages = activeSessionId ? (messages[activeSessionId] || []) : [];
-  const isDesignBlocked = !!usage && usage.remaining <= 0 && isDesignPrompt(text);
+  const isDesignBlocked = !!usage && usage.remaining <= 0 && isConfirmationPrompt(text);
 
   // ── Auto-scroll to bottom on new content ────────────────
   useEffect(() => {

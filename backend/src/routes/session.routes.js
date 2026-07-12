@@ -13,7 +13,7 @@ import { NotFoundError, ForbiddenError, asyncHandler } from '../utils/errors.js'
 import sseService from '../services/sse.service.js';
 import * as orchestrator from '../services/chat.orchestrator.js';
 import logger from '../utils/logger.js';
-import { ensureFreshUsage, isDesignRequest } from '../services/plan.service.js';
+import { ensureFreshUsage, isTopologyConfirmation } from '../services/plan.service.js';
 
 const router = Router();
 
@@ -133,7 +133,7 @@ router.get('/:id/stream', sseAuth, asyncHandler(async (req, res) => {
 router.post('/:id/messages', requireAuth, validate(messageSchemas.create), asyncHandler(async (req, res) => {
   const session = await findOwnedSession(req.params.id, req.user._id);
 
-  if (isDesignRequest(req.body.content)) {
+  if (isTopologyConfirmation(req.body.content)) {
     const user = await User.findById(req.user._id);
     if (!user) throw new NotFoundError('User not found');
     const usage = await ensureFreshUsage(user);

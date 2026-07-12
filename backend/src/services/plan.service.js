@@ -92,3 +92,9 @@ export function isDesignRequest(content = '') {
   return /\b(build|create|generate|design|make|draw|plan)\b.*\b(network|topology|diagram|router|switch|pc|host|firewall|site|branch|branches|vlan|company)\b/i.test(msg)
     || /\b(give|make|create|design|build)\b.*\b(network\s*)?design\s+for\b/i.test(msg);
 }
+
+export function isTopologyConfirmation(content = '') {
+  const msg = String(content).toLowerCase();
+  return /\b(topology|design)\b.*\b(confirm|confirmed|approve|approved|accept|accepted)\b/i.test(msg)
+    || /\b(confirm|confirmed|approve|approved|accept|accepted)\b.*\b(topology|design)\b/i.test(msg);
+}

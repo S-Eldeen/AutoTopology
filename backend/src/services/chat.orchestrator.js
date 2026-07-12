@@ -22,7 +22,7 @@ import { Topology } from '../models/Topology.js';
 import { ExportJob } from '../models/Export.js';
 import { User } from '../models/User.js';
 import logger from '../utils/logger.js';
-import { consumeDesign } from './plan.service.js';
+import { consumeDesign, isTopologyConfirmation } from './plan.service.js';
 import { LLMError, EngineError } from '../utils/errors.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -185,7 +185,11 @@ function getDeterministicAction(userMessage, hasTopology) {
 
   if (/\b(export|download|deploy|deployment kit|gns3|configs?|configuration files?)\b/.test(msg)) {
     return hasTopology
-      ? { type: 'tool', tool: 'export_project', args: {} }
+      ? {
+          type: 'tool',
+          tool: 'export_project',
+          args: { confirmTopology: isTopologyConfirmation(userMessage) },
+        }
       : { type: 'message', content: 'No topology exists to export yet. Generate a topology first, then ask me to export it.' };
   }
 
@@ -763,8 +767,6 @@ async function executeTool(sessionId, userId, toolName, args) {
       });
 
       summary = `Generated topology "${topology.name}" with ${topology.nodeCount} devices and ${topology.linkCount} links.`;
-      const usage = await consumeDesign(await User.findById(userId));
-
       sseService.broadcast(sessionId, 'topology_ready', {
         topologyId: topology._id,
         topology_dict: result.topology_dict,
@@ -774,8 +776,6 @@ async function executeTool(sessionId, userId, toolName, args) {
         assumptions: result.assumptions,
         thinking_text: result.thinking_text,
       });
-      sseService.broadcast(sessionId, 'usage_update', { usage });
-
     } else if (toolName === 'edit_topology') {
       const session = await Session.findById(sessionId);
       const topology = await Topology.findById(session.currentTopologyId);
@@ -804,8 +804,6 @@ async function executeTool(sessionId, userId, toolName, args) {
 
       await Session.findByIdAndUpdate(sessionId, { currentTopologyId: updated._id });
       summary = `Updated topology: ${updated.name} (${updated.nodeCount} devices, ${updated.linkCount} links).`;
-      const usage = await consumeDesign(await User.findById(userId));
-
       sseService.broadcast(sessionId, 'topology_ready', {
         topologyId: updated._id,
         topology_dict: result.topology_dict,
@@ -813,12 +811,17 @@ async function executeTool(sessionId, userId, toolName, args) {
         requirements: result.requirements,
         thinking_text: result.thinking_text,
       });
-      sseService.broadcast(sessionId, 'usage_update', { usage });
-
     } else if (toolName === 'export_project') {
       const session = await Session.findById(sessionId);
       const topology = await Topology.findById(session.currentTopologyId);
       if (!topology) throw new EngineError('No topology to export. Generate one first.');
+
+      if (args.confirmTopology && !topology.usageCountedAt) {
+        const usage = await consumeDesign(await User.findById(userId));
+        topology.usageCountedAt = new Date();
+        await topology.save();
+        sseService.broadcast(sessionId, 'usage_update', { usage });
+      }
 
       const exportJob = await ExportJob.create({
         sessionId, userId,

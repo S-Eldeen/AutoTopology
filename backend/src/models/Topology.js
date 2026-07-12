@@ -28,6 +28,8 @@ const topologySchema = new mongoose.Schema({
   // (AI engine may return either a string or an array of strings — accept both)
   designReview: { type: [String], default: null },
   assumptions: { type: [String], default: null },
+  // A design consumes quota only when the user confirms this topology.
+  usageCountedAt: { type: Date, default: null },
   // Phase1 file path (server-side, for re-running edit/export)
   phase1File: { type: String, default: null },
 }, {
