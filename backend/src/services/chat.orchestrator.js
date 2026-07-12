@@ -105,13 +105,22 @@ function isExistingTopologyRequest(userMessage) {
 
 function parseSecurityProfileSelection(userMessage) {
   const msg = (userMessage || '').toLowerCase().trim();
-  if (/^(none|no security|without security|no hardening|default)$/i.test(msg)) return 'none';
-  if (/^(basic|standard|simple security)$/i.test(msg)) return 'basic';
-  if (/^(enterprise|security|advanced|enterprise security|zero trust)$/i.test(msg)) return 'enterprise';
+  if (/\b(no security|without security|no hardening|security profile\s*(?:to|as|=|:)?\s*none)\b/i.test(msg)
+      || /^(none|default)$/i.test(msg)) return 'none';
+  if (/\b(basic|standard|simple)\s+(?:security|hardening|security profile)\b/i.test(msg)
+      || /^(basic|standard|simple security)$/i.test(msg)) return 'basic';
+  if (/\b(enterprise|advanced)\s+(?:security|hardening|security profile)\b/i.test(msg)
+      || /^(enterprise|security|advanced|enterprise security|zero trust)$/i.test(msg)) return 'enterprise';
   const explicit = msg.match(/\bsecurity profile\s*(?:to|as|=|:)?\s*(none|basic|enterprise)\b/i);
   if (explicit) return explicit[1].toLowerCase();
   const change = msg.match(/\b(?:use|set|change|switch)\b.*\b(none|basic|enterprise)\b/i);
-  return change ? change[1].toLowerCase() : null;
+  if (change) return change[1].toLowerCase();
+
+  // Infer enterprise security from the user's requested outcome or controls.
+  // This prevents a redundant profile question when the prompt already carries
+  // enough security intent to choose the strongest matching built-in profile.
+  const enterpriseSecurityIntent = /\b(?:secure|secured|security|harden|hardened|hardening|zero[ -]?trust|firewalls?|dmz|zbf|zone[ -]?based firewall|segmentation|microsegmentation|siem|ids|ips|vpn|ipsec|aaa|tacacs\+?|radius|snmpv3|dhcp snooping|dynamic arp inspection|dai|bpdu guard|port security|urpf|anti[ -]?spoofing|compliance)\b/i;
+  return enterpriseSecurityIntent.test(msg) ? 'enterprise' : null;
 }
 
 function isSecurityProfileChangeRequest(userMessage) {
@@ -956,7 +965,12 @@ export async function dispatch(sessionId, userId, userMessage) {
     }
   }
   if (deterministicAction?.type === 'tool') {
-    if (!session.securityProfile) {
+    if (!session.securityProfile && selectedProfile) {
+      await setSessionSecurityProfile(sessionId, selectedProfile);
+      session.securityProfile = selectedProfile;
+      freshSession.securityProfile = selectedProfile;
+      await dismissSecurityProfilePrompt(sessionId);
+    } else if (!session.securityProfile) {
       await askForSecurityProfile(sessionId, deterministicAction);
       return { ok: true, rounds: 0 };
     }
@@ -1083,7 +1097,11 @@ export async function dispatch(sessionId, userId, userMessage) {
     }
 
     // ── No tool calls → done ───────────────────────────────
-    if (toolCalls.length > 0 && !freshSession.securityProfile) {
+    if (toolCalls.length > 0 && !freshSession.securityProfile && selectedProfile) {
+      await setSessionSecurityProfile(sessionId, selectedProfile);
+      freshSession.securityProfile = selectedProfile;
+      await dismissSecurityProfilePrompt(sessionId);
+    } else if (toolCalls.length > 0 && !freshSession.securityProfile) {
       const firstToolCall = toolCalls[0];
       let pendingArgs = {};
       try { pendingArgs = JSON.parse(firstToolCall.function.arguments || '{}'); } catch { pendingArgs = {}; }
