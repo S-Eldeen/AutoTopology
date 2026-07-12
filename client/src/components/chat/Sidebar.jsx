@@ -320,18 +320,29 @@ export default function Sidebar({
 
         {/* Profile popover */}
         <div className="border-t border-white/[0.08] p-3 flex-shrink-0 relative">
-          <button
-            onClick={() => setProfileOpen(!profileOpen)}
-            className="w-full flex items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-zinc-800 transition-colors"
-          >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-semibold text-xs shadow-sm flex-shrink-0">
-              {user?.name?.[0]?.toUpperCase() || <User size={14} />}
-            </div>
-            <div className="flex-1 min-w-0 text-left">
-              <div className="text-sm font-medium text-white truncate">{user?.name || 'User'}</div>
-            </div>
-            <ChevronDown size={14} className={`text-zinc-500 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
-          </button>
+          <div className="flex items-center gap-1 rounded-xl px-2 py-2 hover:bg-zinc-800 transition-colors">
+            <button
+              onClick={() => setProfileOpen(!profileOpen)}
+              className="flex min-w-0 flex-1 items-center gap-2.5"
+              aria-expanded={profileOpen}
+              aria-label="Open profile menu"
+            >
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-semibold text-xs shadow-sm flex-shrink-0">
+                {user?.name?.[0]?.toUpperCase() || <User size={14} />}
+              </div>
+              <div className="min-w-0 flex-1 text-left">
+                <div className="truncate text-sm font-medium text-white">{user?.name || 'User'}</div>
+              </div>
+              <ChevronDown size={14} className={`flex-shrink-0 text-zinc-500 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
+            </button>
+            <Link
+              to="/plans"
+              onClick={onClose}
+              className="flex-shrink-0 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[11px] font-semibold text-emerald-300 transition-colors hover:border-emerald-300/50 hover:bg-emerald-400/20 hover:text-emerald-200"
+            >
+              Upgrade
+            </Link>
+          </div>
 
           {profileOpen && (
             <div className="absolute bottom-full left-3 right-3 mb-1 rounded-xl border border-zinc-700 bg-zinc-800 shadow-xl overflow-hidden animate-fade-in">
@@ -361,14 +372,6 @@ export default function Sidebar({
                 <ShieldCheck size={14} className="text-zinc-500" />
                 Privacy Policy
               </Link>
-              <a
-                href="/plans"
-                onMouseDown={() => window.location.assign('/plans')}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
-              >
-                <Settings size={14} className="text-zinc-500" />
-                Manage plan
-              </a>
               <div className="h-px bg-zinc-700" />
               <button
                 onClick={onLogout}
