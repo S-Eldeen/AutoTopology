@@ -107,7 +107,7 @@ function parseSecurityProfileSelection(userMessage) {
   const msg = (userMessage || '').toLowerCase().trim();
   if (/^(none|no security|without security|no hardening|default)$/i.test(msg)) return 'none';
   if (/^(basic|standard|simple security)$/i.test(msg)) return 'basic';
-  if (/^(enterprise|advanced|enterprise security|zero trust)$/i.test(msg)) return 'enterprise';
+  if (/^(enterprise|security|advanced|enterprise security|zero trust)$/i.test(msg)) return 'enterprise';
   const explicit = msg.match(/\bsecurity profile\s*(?:to|as|=|:)?\s*(none|basic|enterprise)\b/i);
   if (explicit) return explicit[1].toLowerCase();
   const change = msg.match(/\b(?:use|set|change|switch)\b.*\b(none|basic|enterprise)\b/i);
@@ -117,7 +117,7 @@ function parseSecurityProfileSelection(userMessage) {
 function isSecurityProfileChangeRequest(userMessage) {
   const msg = (userMessage || '').toLowerCase();
   return /\b(security profile|profile)\b/.test(msg)
-    && /\b(none|basic|enterprise)\b/.test(msg);
+    && /\b(none|basic|enterprise|security)\b/.test(msg);
 }
 
 function securityProfilePrompt() {
@@ -130,6 +130,15 @@ function securityProfilePrompt() {
     '',
     'Reply with one option: None, Basic, or Enterprise.',
   ].join('\n');
+}
+
+async function dismissSecurityProfilePrompt(sessionId) {
+  const prompt = stripEmojis(securityProfilePrompt());
+  await Session.updateOne(
+    { _id: sessionId },
+    { $pull: { messages: { role: 'assistant', content: prompt } } }
+  );
+  sseService.broadcast(sessionId, 'security_profile_selected', { prompt });
 }
 
 function getDeterministicAction(userMessage, hasTopology) {
@@ -899,6 +908,7 @@ export async function dispatch(sessionId, userId, userMessage) {
         },
       }
     );
+    await dismissSecurityProfilePrompt(sessionId);
 
     const pending = session.pendingSecurityProfileAction;
     if (pending?.type === 'tool') {
@@ -910,6 +920,7 @@ export async function dispatch(sessionId, userId, userMessage) {
 
   if (isSecurityProfileChangeRequest(userMessage) && selectedProfile) {
     await setSessionSecurityProfile(sessionId, selectedProfile);
+    await dismissSecurityProfilePrompt(sessionId);
     await sendDirectMessage(
       sessionId,
       `Security Profile changed to ${profileLabel(selectedProfile)}. I will use it for topology generation, configuration generation, and GNS3 export in this session.`

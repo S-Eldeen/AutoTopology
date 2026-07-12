@@ -412,6 +412,20 @@ export const useChatStore = create((set, get) => ({
         }));
         break;
 
+      case 'security_profile_selected':
+        set((s) => ({
+          messages: {
+            ...s.messages,
+            [sessionId]: (s.messages[sessionId] || []).filter(
+              (message) => !(
+                message.role === 'assistant'
+                && message.content === data.prompt
+              )
+            ),
+          },
+        }));
+        break;
+
       case 'tool_start':
         set({ activeTool: startToolTrace(data.tool, data.args) });
         break;
