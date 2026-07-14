@@ -719,11 +719,22 @@ def _strip_internal_metadata(value):
     return value
 
 
-def _validate_persistent_project(project: dict, packed_configs: Dict[str, str]) -> None:
+def _validate_persistent_project(
+    project: dict,
+    packed_configs: Dict[str, str],
+    image_map: Dict[str, str],
+) -> None:
     """Fail closed if portable-project invariants are violated pre-write."""
     topology = project.get("topology", {})
     nodes = topology.get("nodes", [])
     node_ids = {node.get("node_id") for node in nodes}
+    if None in node_ids or len(node_ids) != len(nodes):
+        raise ExportError("Node identifiers must be present and unique")
+
+    local_node_types = {
+        "dynamips", "vpcs", "ethernet_switch", "ethernet_hub",
+        "frame_relay_switch", "atm_switch",
+    }
 
     for node in nodes:
         name = node.get("name", node.get("node_id", "?"))
@@ -731,6 +742,21 @@ def _validate_persistent_project(project: dict, packed_configs: Dict[str, str]) 
             raise ExportError(f"Node '{name}' contains forbidden template_id")
         if node.get("compute_id") != "local":
             raise ExportError(f"Node '{name}' does not use local compute")
+        node_type = node.get("node_type")
+        if node_type not in local_node_types:
+            raise ExportError(
+                f"Node '{name}' uses '{node_type}', which is not supported by "
+                "the Windows Local GNS3 Server policy"
+            )
+        if node_type == "dynamips":
+            actual_image = str(node.get("properties", {}).get("image", "")).strip()
+            calibrated_images = {
+                str(image).strip() for image in image_map.values() if str(image).strip()
+            }
+            if not actual_image or actual_image not in calibrated_images:
+                raise ExportError(
+                    f"Node '{name}' does not use an explicitly calibrated local image"
+                )
         props = node.get("properties", {})
         if any(str(key).startswith("_") for key in props):
             raise ExportError(f"Node '{name}' contains internal metadata")
@@ -751,6 +777,10 @@ def _validate_persistent_project(project: dict, packed_configs: Dict[str, str]) 
                 raise ExportError("Link contains an invalid adapter number")
             if not isinstance(endpoint.get("port_number"), int) or endpoint["port_number"] < 0:
                 raise ExportError("Link contains an invalid port number")
+
+    link_ids = [link.get("link_id") for link in topology.get("links", [])]
+    if None in link_ids or len(set(link_ids)) != len(link_ids):
+        raise ExportError("Link identifiers must be present and unique")
 
     for path_name in packed_configs:
         if not path_name.startswith("project-files/"):
@@ -1213,7 +1243,7 @@ def convert(
         },
     }
 
-    _validate_persistent_project(project_gns3, all_zip_configs)
+    _validate_persistent_project(project_gns3, all_zip_configs, image_map)
 
     if not str(output_path).endswith(".gns3project"):
         output_path = str(output_path) + ".gns3project"

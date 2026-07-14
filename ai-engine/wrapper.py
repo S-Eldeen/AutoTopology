@@ -398,22 +398,23 @@ def _resolve_profile_and_inventory(args):
 
 
 def _apply_native_server_policy(inventory, blocked_types, request_text: str):
-    """Exclude NAT unless the request affirmatively declares a compatible compute."""
-    text = " ".join(str(request_text or "").lower().split())
-    negated = any(phrase in text for phrase in (
-        "no gns3 vm", "without gns3 vm", "don't use gns3 vm",
-        "do not use gns3 vm", "no linux compute", "windows local server",
-    ))
-    affirmative = any(phrase in text for phrase in (
-        "i use gns3 vm", "i have gns3 vm", "use the gns3 vm",
-        "run on gns3 vm", "use a linux compute", "use linux compute",
-        "run on linux compute", "use a linux server", "run on linux server",
-    ))
-    if affirmative and not negated:
-        return inventory, blocked_types
+    """Enforce the Windows Local GNS3 Server compatibility envelope."""
+    del request_text  # Policy is intentionally invariant, not prompt-controlled.
+    local_types = {
+        "dynamips", "vpcs", "ethernet_switch", "ethernet_hub",
+        "frame_relay_switch", "atm_switch",
+    }
+    rejected = {
+        str(item.get("gns3_type", "")).lower()
+        for item in inventory
+        if str(item.get("gns3_type", "")).lower() not in local_types
+    }
     return (
-        [item for item in inventory if str(item.get("gns3_type", "")).lower() != "nat"],
-        set(blocked_types) | {"nat"},
+        [
+            item for item in inventory
+            if str(item.get("gns3_type", "")).lower() in local_types
+        ],
+        set(blocked_types) | rejected,
     )
 
 

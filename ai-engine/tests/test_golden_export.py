@@ -4,7 +4,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from structranet.export.gns3_exporter import convert
+from structranet.export.gns3_exporter import ExportError, convert
 from structranet.export.validator import GNS3ProjectValidator
 
 
@@ -47,7 +47,11 @@ class GoldenExportTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as td:
             out_file = Path(td) / "regression.gns3project"
-            convert(data, str(out_file))
+            convert(
+                data,
+                str(out_file),
+                image_map={"c3745": "c3745-adventerprisek9-mz.124-25d.bin"},
+            )
 
             with zipfile.ZipFile(out_file) as archive:
                 project_name = next(
@@ -107,6 +111,44 @@ class GoldenExportTests(unittest.TestCase):
                 self.assertNotIn("custom", node["properties"])
                 script_path = f"project-files/vpcs/{node['node_id']}/startup.vpc"
                 self.assertEqual(archive.read(script_path).decode(), "ip 10.0.0.2/24\n")
+
+    def test_vm_dependent_node_is_rejected(self):
+        data = {
+            "name": "vm-dependent",
+            "topology": {
+                "nodes": [{
+                    "node_id": "q1",
+                    "name": "QEMU1",
+                    "node_type": "qemu",
+                    "template_name": "Cisco CSR1000v",
+                    "properties": {"hda_disk_image": "csr.qcow2"},
+                }],
+                "links": [],
+            },
+        }
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaisesRegex(ExportError, "Windows Local GNS3 Server"):
+                convert(data, str(Path(td) / "invalid.gns3project"), image_map={
+                    "Cisco CSR1000v": "csr.qcow2",
+                })
+
+    def test_dynamips_without_calibrated_image_is_rejected(self):
+        data = {
+            "name": "missing-image",
+            "topology": {
+                "nodes": [{
+                    "node_id": "r1",
+                    "name": "R1",
+                    "node_type": "dynamips",
+                    "template_name": "c3745",
+                    "properties": {"platform": "c3745"},
+                }],
+                "links": [],
+            },
+        }
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaisesRegex(ExportError, "calibrated local image"):
+                convert(data, str(Path(td) / "invalid.gns3project"))
 
 
 if __name__ == "__main__":
