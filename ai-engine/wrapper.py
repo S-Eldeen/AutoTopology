@@ -397,6 +397,26 @@ def _resolve_profile_and_inventory(args):
     return catalog, inventory, filtered_inventory, blocked_types, profile
 
 
+def _apply_native_server_policy(inventory, blocked_types, request_text: str):
+    """Exclude NAT unless the request affirmatively declares a compatible compute."""
+    text = " ".join(str(request_text or "").lower().split())
+    negated = any(phrase in text for phrase in (
+        "no gns3 vm", "without gns3 vm", "don't use gns3 vm",
+        "do not use gns3 vm", "no linux compute", "windows local server",
+    ))
+    affirmative = any(phrase in text for phrase in (
+        "i use gns3 vm", "i have gns3 vm", "use the gns3 vm",
+        "run on gns3 vm", "use a linux compute", "use linux compute",
+        "run on linux compute", "use a linux server", "run on linux server",
+    ))
+    if affirmative and not negated:
+        return inventory, blocked_types
+    return (
+        [item for item in inventory if str(item.get("gns3_type", "")).lower() != "nat"],
+        set(blocked_types) | {"nat"},
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  TOPOLOGY SUMMARY BUILDER — Enriches raw topology with metadata
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -566,6 +586,9 @@ def cmd_generate(args: argparse.Namespace) -> None:
 
     # ── Resolve environment context (profile + inventory) ────────────────
     catalog, inventory, filtered_inventory, blocked_types, profile = _resolve_profile_and_inventory(args)
+    filtered_inventory, blocked_types = _apply_native_server_policy(
+        filtered_inventory, blocked_types, user_request,
+    )
 
     if not filtered_inventory:
         _fail("Profile blocks all available node types in inventory")
@@ -663,6 +686,13 @@ def cmd_edit(args: argparse.Namespace) -> None:
 
     # ── Resolve environment context ───────────────────────────────────────
     catalog, inventory, filtered_inventory, blocked_types, profile = _resolve_profile_and_inventory(args)
+    nat_context = " ".join(filter(None, [
+        str(getattr(args, "original_request", "") or ""),
+        str(feedback),
+    ]))
+    filtered_inventory, blocked_types = _apply_native_server_policy(
+        filtered_inventory, blocked_types, nat_context,
+    )
 
     if not filtered_inventory:
         _fail("Profile blocks all available node types in inventory")

@@ -57,6 +57,8 @@ class GoldenExportTests(unittest.TestCase):
                 node = project["topology"]["nodes"][0]
                 props = node["properties"]
 
+                self.assertEqual(node["compute_id"], "local")
+                self.assertNotIn("template_id", node)
                 self.assertEqual(props["nvram"], 256)
                 self.assertEqual(
                     props["startup_config"], "configs/startup-config.cfg"
@@ -72,6 +74,39 @@ class GoldenExportTests(unittest.TestCase):
                     "configs/startup-config.cfg"
                 )
                 self.assertEqual(archive.read(config_path).decode(), "hostname R1\n")
+
+    def test_file_backed_vpcs_config_and_nested_metadata_are_not_serialized(self):
+        data = {
+            "name": "portable",
+            "topology": {
+                "nodes": [{
+                    "node_id": "pc1",
+                    "name": "PC1",
+                    "node_type": "vpcs",
+                    "compute_id": "gns3vm",
+                    "properties": {
+                        "startup_script": "ip 10.0.0.2/24\n",
+                        "custom": {"visible": True, "_secret": "remove"},
+                        "_internal": "remove",
+                    },
+                }],
+                "links": [],
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as td:
+            out_file = Path(td) / "portable.gns3project"
+            convert(data, str(out_file))
+            with zipfile.ZipFile(out_file) as archive:
+                project_name = next(name for name in archive.namelist() if name.endswith(".gns3"))
+                node = json.loads(archive.read(project_name))["topology"]["nodes"][0]
+                self.assertEqual(node["compute_id"], "local")
+                self.assertNotIn("template_id", node)
+                self.assertNotIn("startup_script", node["properties"])
+                self.assertNotIn("_internal", node["properties"])
+                self.assertNotIn("custom", node["properties"])
+                script_path = f"project-files/vpcs/{node['node_id']}/startup.vpc"
+                self.assertEqual(archive.read(script_path).decode(), "ip 10.0.0.2/24\n")
 
 
 if __name__ == "__main__":

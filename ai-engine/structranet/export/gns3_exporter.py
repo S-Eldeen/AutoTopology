@@ -594,6 +594,31 @@ _CONTENT_TO_POINTER: dict = {
     "startup_config_content": "startup_config",
 }
 
+_EXTRA_PERSISTENT_PROPERTIES = {
+    "dynamips": {"startup_config", "idlepc", "mac_address", "system_id"},
+    "iou": {"startup_config", "application_id", "use_default_iou_values"},
+    "qemu": {"startup_config", "mac_address", "process_priority"},
+    "docker": {"mac_address"},
+    "vpcs": {"mac_address"},
+    "ethernet_switch": {"ports_mapping"},
+    "ethernet_hub": {"ports_mapping"},
+    "cloud": {"ports_mapping", "remote_console_host"},
+}
+
+
+def _persistent_property_keys(node_type: str) -> set:
+    """Return the conservative persistent-property allowlist for a node type."""
+    allowed = set(_EXTRA_PERSISTENT_PROPERTIES.get(node_type, set()))
+    for entry in APPLIANCE_CATALOG.values():
+        if entry.get("node_type") != node_type:
+            continue
+        allowed.update(
+            key for key in entry
+            if key != "node_type" and key not in CATALOG_META_KEYS
+            and not str(key).startswith("_")
+        )
+    return allowed
+
 
 def _clean_properties(node: dict) -> dict:
     """Strip internal keys and replace PUT-unsafe startup config content.
@@ -628,6 +653,7 @@ def _clean_properties(node: dict) -> dict:
     ntype = node.get("node_type", "")
     props = node.get("properties", {})
     cleaned: dict = {}
+    allowed_keys = _persistent_property_keys(ntype)
 
     # Build the set of content keys that are valid for this node type.
     active_content_paths: dict = {}
@@ -636,6 +662,8 @@ def _clean_properties(node: dict) -> dict:
             active_content_paths[prop_key] = subpath
 
     for k, v in props.items():
+        if str(k).startswith("_"):
+            continue
         # Strip forbidden file-pointer keys that are never valid in any
         # GNS3 node-type schema.  The LLM or upstream pipeline may
         # accidentally include them (e.g. from GNS3 project examples).
@@ -654,17 +682,20 @@ def _clean_properties(node: dict) -> dict:
                 "Stripped catalog meta key '%s' from %s node", k, ntype,
             )
             continue
-        if k in _PIPELINE_CONTENT_KEYS and k not in active_content_paths:
+        if k in _PIPELINE_CONTENT_KEYS:
             # Content key for a *different* node type — drop it.
             # It is not valid in this node type's schema.
             logger.debug(
                 "Stripped cross-type key '%s' (not valid for %s)", k, ntype,
             )
             continue
+        if k not in allowed_keys and k not in _PIPELINE_CONTENT_KEYS:
+            logger.warning("Stripped unsupported persistent property '%s' from %s", k, ntype)
+            continue
         if k in _CONTENT_TO_POINTER:
             continue
         # Valid property (including content keys for THIS node type) — keep.
-        cleaned[k] = v
+        cleaned[k] = _strip_internal_metadata(v)
 
     # Do this after copying ordinary properties so an upstream pointer cannot
     # override the path of the config file packed by _extract_configs().
@@ -673,6 +704,57 @@ def _clean_properties(node: dict) -> dict:
             cleaned[pointer_key] = active_content_paths[content_key]
 
     return cleaned
+
+
+def _strip_internal_metadata(value):
+    """Recursively remove internal keys before persistent serialization."""
+    if isinstance(value, dict):
+        return {
+            k: _strip_internal_metadata(v)
+            for k, v in value.items()
+            if not str(k).startswith("_")
+        }
+    if isinstance(value, list):
+        return [_strip_internal_metadata(item) for item in value]
+    return value
+
+
+def _validate_persistent_project(project: dict, packed_configs: Dict[str, str]) -> None:
+    """Fail closed if portable-project invariants are violated pre-write."""
+    topology = project.get("topology", {})
+    nodes = topology.get("nodes", [])
+    node_ids = {node.get("node_id") for node in nodes}
+
+    for node in nodes:
+        name = node.get("name", node.get("node_id", "?"))
+        if "template_id" in node:
+            raise ExportError(f"Node '{name}' contains forbidden template_id")
+        if node.get("compute_id") != "local":
+            raise ExportError(f"Node '{name}' does not use local compute")
+        props = node.get("properties", {})
+        if any(str(key).startswith("_") for key in props):
+            raise ExportError(f"Node '{name}' contains internal metadata")
+        duplicated = _PIPELINE_CONTENT_KEYS.intersection(props)
+        if duplicated:
+            raise ExportError(
+                f"Node '{name}' contains file-backed inline config: {sorted(duplicated)}"
+            )
+
+    for link in topology.get("links", []):
+        endpoints = link.get("nodes", [])
+        if len(endpoints) != 2:
+            raise ExportError("Every persistent link must have exactly two endpoints")
+        for endpoint in endpoints:
+            if endpoint.get("node_id") not in node_ids:
+                raise ExportError("Link references a node absent from the project")
+            if not isinstance(endpoint.get("adapter_number"), int) or endpoint["adapter_number"] < 0:
+                raise ExportError("Link contains an invalid adapter number")
+            if not isinstance(endpoint.get("port_number"), int) or endpoint["port_number"] < 0:
+                raise ExportError("Link contains an invalid port number")
+
+    for path_name in packed_configs:
+        if not path_name.startswith("project-files/"):
+            raise ExportError(f"Config path is outside project-files/: {path_name}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -995,11 +1077,6 @@ def convert(
         all_zip_configs.update(_extract_configs(n, nuuid))
 
         template_name = n.get("template_name", "")
-        template_id:  Optional[str] = None
-        if ntype in _APPLIANCE_TYPES and template_name:
-            template_id = str(
-                uuid.uuid5(uuid.NAMESPACE_DNS, f"gns3-template-{template_name}")
-            )
 
         # Resolve port_name_format and port_segment_size.
         # Priority: node-level override → appliance catalog → type-based default.
@@ -1052,9 +1129,6 @@ def convert(
             ),
             # "ports":             _build_ports(n, links_in), --> read only you can't write 
         }
-
-        if ntype in _APPLIANCE_TYPES:
-            node_obj["template_id"] = template_id
 
         gns3_nodes.append(node_obj)
 
@@ -1138,6 +1212,8 @@ def convert(
             "computes": [],
         },
     }
+
+    _validate_persistent_project(project_gns3, all_zip_configs)
 
     if not str(output_path).endswith(".gns3project"):
         output_path = str(output_path) + ".gns3project"
