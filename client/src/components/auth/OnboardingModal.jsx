@@ -172,6 +172,7 @@ export default function OnboardingModal() {
         supportsQemu,
         supportsDocker,
         strictValidation,
+        requireTemplateImageMap: Object.keys(cleanMap).length > 0,
         imageMap: cleanMap,
       });
       await fetchProfile();

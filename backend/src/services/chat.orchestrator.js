@@ -743,7 +743,11 @@ async function executeTool(sessionId, userId, toolName, args) {
       supports_qemu: p?.supportsQemu ?? true,
       supports_docker: p?.supportsDocker ?? false,
       strict_validation: p?.strictValidation ?? true,
-      require_template_image_map: p?.requireTemplateImageMap ?? false,
+      // Existing saved profiles predate the explicit enforcement flag. A
+      // non-empty image map is itself an instruction to use only calibrated
+      // appliance templates.
+      require_template_image_map: (p?.requireTemplateImageMap ?? false)
+        || Object.keys(templateImageMap).length > 0,
       template_image_map: templateImageMap,
       security_profile: 'none',  // overridden by --security-profile arg
     };

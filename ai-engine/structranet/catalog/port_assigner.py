@@ -299,7 +299,9 @@ def build_topology_from_request(request: TopologyRequest) -> dict:
             "node_type": n.node_type,
             "template_name": n.template_name,
             "properties": {},
-            "compute_id": n.compute_id,
+            # StructuraNet portable projects target the GNS3 server process,
+            # never a GNS3 VM/remote compute selected by model output.
+            "compute_id": "local",
         })
 
     links_out = []

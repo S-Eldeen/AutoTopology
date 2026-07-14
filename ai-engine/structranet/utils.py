@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from structranet.constants.hardware import DYNAMIPS_MAX_PORTS
+from structranet.constants.gns3 import APPLIANCE_NODE_TYPES
 from structranet.generation.preflight import PreflightProfile
 
 
@@ -30,6 +31,7 @@ def catalog_to_inventory(catalog: dict) -> List[Dict[str, Any]]:
             "name": name,
             "gns3_type": ntype,
             "category": props.get("category", ""),
+            "requires_image": ntype in APPLIANCE_NODE_TYPES,
         }
         if ntype in _SINGLE_PORT_TYPES:
             entry["port_count"] = 1

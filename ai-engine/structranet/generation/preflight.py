@@ -181,12 +181,12 @@ def filter_inventory_by_profile(
  
     if profile.require_template_image_map:
         allowed_names = profile.normalized_template_image_map
-        builtin_types = {"ethernet_switch", "ethernet_hub"}
         filtered = [
             d for d in filtered
-            if str(d.get("gns3_type", "")).lower() in builtin_types
+            # Built-in nodes (VPCS, Ethernet switch/hub, NAT, cloud, etc.) do
+            # not need an installed image and remain available.
+            if not bool(d.get("requires_image", False))
             or str(d.get("name", "")).strip() in allowed_names
         ]
  
     return filtered, blocked
- 

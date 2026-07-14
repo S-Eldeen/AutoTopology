@@ -65,7 +65,17 @@ router.put('/', requireAuth, validate(profileSchemas.update), asyncHandler(async
   if (b.strictValidation !== undefined) user.gns3Profile.strictValidation = b.strictValidation;
   if (b.requireTemplateImageMap !== undefined) user.gns3Profile.requireTemplateImageMap = b.requireTemplateImageMap;
   if (b.imageMap !== undefined) {
-    user.gns3Profile.imageMap = new Map(Object.entries(b.imageMap));
+    const cleanImageMap = Object.fromEntries(
+      Object.entries(b.imageMap)
+        .map(([template, image]) => [template.trim(), image.trim()])
+        .filter(([template, image]) => template && image)
+    );
+    user.gns3Profile.imageMap = new Map(Object.entries(cleanImageMap));
+    // A populated calibration map means appliance selection must be limited
+    // to those installed images, including for profiles saved by older clients.
+    if (b.requireTemplateImageMap === undefined) {
+      user.gns3Profile.requireTemplateImageMap = Object.keys(cleanImageMap).length > 0;
+    }
   }
   user.gns3Profile.isCalibrated = true;
   user.gns3Profile.updatedAt = new Date();

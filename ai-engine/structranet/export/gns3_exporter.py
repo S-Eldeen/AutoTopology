@@ -951,9 +951,20 @@ def convert(
     if name_override:
         project_name = name_override
 
+    image_property_by_type = {
+        "dynamips": "image",
+        "iou": "path",
+        "qemu": "hda_disk_image",
+        "docker": "image",
+    }
     for n in nodes_in:
-        if n.get("node_type") == "dynamips" and n.get("template_name") in image_map:
-            n.setdefault("properties", {})["image"] = image_map[n["template_name"]]
+        # Force all workloads onto the local GNS3 server compute. This also
+        # repairs older stored topologies that contain a VM/remote compute ID.
+        n["compute_id"] = "local"
+        template = n.get("template_name")
+        image_property = image_property_by_type.get(n.get("node_type"))
+        if image_property and template in image_map:
+            n.setdefault("properties", {})[image_property] = image_map[template]
         _inject_hardware_properties(n, links_in)
 
     iou_application_id_counter = 1
@@ -1010,7 +1021,7 @@ def convert(
 
         label = n.get("label") if isinstance(n.get("label"), dict) else {}
         node_obj: dict = {
-            "compute_id":        n.get("compute_id", "local"),
+            "compute_id":        "local",
             "node_id":           nuuid,
             "node_type":         ntype,
             "name":              n.get("name", nid),
