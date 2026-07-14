@@ -61,8 +61,11 @@ export const config = {
       ? path.resolve(__dirname, '../../', process.env.WRAPPER_PATH || process.env.WRAPER_PATH)
       : path.resolve(__dirname, '../../../ai-engine/wrapper.py'),
     outputDir: process.env.OUTPUT_DIR || './output',
-    defaultTimeout: 300_000,      // 5 min for generate/edit
-    exportTimeout: 600_000,       // 10 min for export
+    // Large designs can legitimately spend several minutes in one provider
+    // call. Keep the limits configurable instead of discarding valid results
+    // at a hard-coded five-minute boundary.
+    defaultTimeout: parseInt(process.env.AI_ENGINE_TIMEOUT_MS || '900000', 10),
+    exportTimeout: parseInt(process.env.AI_ENGINE_EXPORT_TIMEOUT_MS || '1200000', 10),
   },
 
   rateLimit: {

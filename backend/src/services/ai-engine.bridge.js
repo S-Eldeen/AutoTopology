@@ -106,8 +106,8 @@ class AIEngineBridge {
     this.pythonBin = config.aiEngine.pythonBin;
     this.wrapperPath = config.aiEngine.wrapperPath;
     this.workerPath = path.resolve(path.dirname(this.wrapperPath), 'worker.py');
-    this.defaultTimeout = config.aiEngine.defaultTimeout;   // 300_000 (5 min)
-    this.exportTimeout = config.aiEngine.exportTimeout;     // 600_000 (10 min)
+    this.defaultTimeout = config.aiEngine.defaultTimeout;
+    this.exportTimeout = config.aiEngine.exportTimeout;
 
     // The persistent worker process — null until first use or after a crash.
     this._proc = null;
@@ -420,8 +420,15 @@ class AIEngineBridge {
       // Set up the timeout — fires if the worker doesn't respond in time
       const timer = setTimeout(() => {
         this._pending.delete(reqId);
-        // Don't kill the worker — it may still be processing and could serve
-        // future requests. Just reject this one request.
+        // This worker is sequential. If the timed-out command is left alive,
+        // later export requests queue behind a result Node has discarded.
+        // Stop it so the next command starts against a clean worker.
+        const proc = this._proc;
+        if (proc && !proc.killed && proc.exitCode === null) {
+          try { proc.kill(); } catch {
+            // It may have exited between the liveness check and kill.
+          }
+        }
         reject(new EngineError(`AI worker request "${command}" timed out after ${timeout / 1000}s`));
       }, timeout);
 

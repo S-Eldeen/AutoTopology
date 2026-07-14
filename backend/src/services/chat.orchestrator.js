@@ -840,12 +840,25 @@ async function executeTool(sessionId, userId, toolName, args) {
       });
       await Session.findByIdAndUpdate(sessionId, { currentExportId: exportJob._id });
 
-      result = await aiEngine.exportProject({
-        topologyPath: topology.phase1File || path.resolve(outputDir, '_topology.json'),
-        securityProfile: selectedSecurityProfile,
-        outputDir,
-        profile,
-      }, onEvent);
+      // Export the exact persisted snapshot the user confirmed. Generation
+      // and edits normally write to the shared `_topology.json` path, which
+      // can be overwritten by a late/abandoned request.
+      const exportTopologyPath = path.resolve(outputDir, `_topology_${topology._id}.json`);
+      await fs.writeFile(exportTopologyPath, JSON.stringify(topology.topologyDict, null, 2), 'utf8');
+
+      try {
+        result = await aiEngine.exportProject({
+          topologyPath: exportTopologyPath,
+          securityProfile: selectedSecurityProfile,
+          outputDir,
+          profile,
+        }, onEvent);
+      } catch (err) {
+        exportJob.status = 'failed';
+        exportJob.error = friendlyToolError(err);
+        await exportJob.save();
+        throw err;
+      }
 
       const files = {
         gns3Project: result.gns3project_path || null,
